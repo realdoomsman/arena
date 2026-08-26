@@ -1,0 +1,235 @@
+// Account-wallet operations: balance, deposits, withdrawals, and signing the
+// swaps that back a basket position. All on-chain, all real.
+import { getDb } from "./db";
+import { CustodyError, isValidAddress, loadSigner } from "./custody";
+import { rpcUrl, verifySignature } from "./swap";
+
+export const LAMPORTS_PER_SOL = 1_000_000_000;
+// leave enough for rent + a few signatures so an account never bricks itself
+export const WITHDRAW_RESERVE_LAMPORTS = 5_000_000; // 0.005 SOL
+
+export type AccountWallet = { address: string; encryptedKey: string };
+
+export function getAccountWallet(userId: number): AccountWallet | null {
+  const row = getDb()
+    .prepare("SELECT wallet_address, wallet_key FROM users WHERE id = ?")
+    .get(userId) as { wallet_address: string | null; wallet_key: string | null } | undefined;
+  if (!row?.wallet_address || !row.wallet_key) return null;
+  return { address: row.wallet_address, encryptedKey: row.wallet_key };
+}
+
+async function rpc<T>(method: string, params: unknown[]): Promise<T> {
+  const res = await fetch(rpcUrl(), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`rpc ${method} ${res.status}`);
+  const json = (await res.json()) as { result?: T; error?: { message?: string } };
+  if (json.error) throw new Error(json.error.message ?? `rpc ${method} failed`);
+  return json.result as T;
+}
+
+/** On-chain SOL balance of the account wallet, in lamports. */
+export async function getSolBalance(address: string): Promise<number> {
+  const r = await rpc<{ value: number }>("getBalance", [address, { commitment: "confirmed" }]);
+  return r?.value ?? 0;
+}
+
+/**
+ * Withdraw SOL from the account wallet to any address the user names.
+ * Signed server-side with the account's own key — the user's funds, moved only
+ * on their explicit instruction.
+ */
+export async function withdrawSol(
+  userId: number,
+  destination: string,
+  amountSol: number
+): Promise<{ signature: string; lamports: number }> {
+  if (!isValidAddress(destination)) throw new CustodyError("That doesn't look like a Solana address");
+  if (!Number.isFinite(amountSol) || amountSol <= 0) throw new CustodyError("Enter an amount");
+
+  const wallet = getAccountWallet(userId);
+  if (!wallet) throw new CustodyError("This account has no wallet yet");
+  if (destination === wallet.address) throw new CustodyError("That's this account's own address");
+
+  const lamports = Math.floor(amountSol * LAMPORTS_PER_SOL);
+  const balance = await getSolBalance(wallet.address);
+  if (lamports + WITHDRAW_RESERVE_LAMPORTS > balance) {
+    const max = Math.max(0, balance - WITHDRAW_RESERVE_LAMPORTS) / LAMPORTS_PER_SOL;
+    throw new CustodyError(
+      `Not enough SOL — you can withdraw up to ${max.toFixed(4)} (a small reserve stays for fees)`
+    );
+  }
+
+  const { Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } =
+    await import("@solana/web3.js");
+  const conn = new Connection(rpcUrl(), "confirmed");
+  const signer = loadSigner(wallet.encryptedKey);
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+
+  const msg = new TransactionMessage({
+    payerKey: signer.publicKey,
+    recentBlockhash: blockhash,
+    instructions: [
+      SystemProgram.transfer({
+        fromPubkey: signer.publicKey,
+        toPubkey: new PublicKey(destination),
+        lamports,
+      }),
+    ],
+  }).compileToV0Message();
+
+  const tx = new VersionedTransaction(msg);
+  tx.sign([signer]);
+  const signature = await conn.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
+  await conn.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+
+  return { signature, lamports };
+}
+
+/**
+ * Sign, send AND CONFIRM one transaction with the account wallet.
+ *
+ * Confirmation is mandatory: an RPC that accepts a transaction is not a
+ * transaction that landed. Callers record ledger rows only for signatures this
+ * function returned, so a dropped or failed swap can never become a phantom
+ * holding. Throws if the transaction did not confirm.
+ */
+/**
+ * Sign, send and confirm using an encrypted key directly rather than a user
+ * account. This is the path every BOT trade takes: bot wallets are owned by
+ * the platform and have no user row of their own, even though the capital
+ * inside them belongs to whoever holds units.
+ */
+export async function signSendConfirmOneWith(
+  encryptedKey: string,
+  base64Tx: string
+): Promise<string> {
+  const { Connection, VersionedTransaction } = await import("@solana/web3.js");
+  const conn = new Connection(rpcUrl(), "confirmed");
+  const signer = loadSigner(encryptedKey);
+  const tx = VersionedTransaction.deserialize(Buffer.from(base64Tx, "base64"));
+  tx.sign([signer]);
+  const latest = await conn.getLatestBlockhash("confirmed");
+  const signature = await conn.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
+  const res = await conn.confirmTransaction(
+    { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+    "confirmed"
+  );
+  if (res.value.err) throw new CustodyError(`Transaction failed on-chain (${signature})`);
+  return signature;
+}
+
+export async function signSendConfirmOne(userId: number, base64Tx: string): Promise<string> {
+  const wallet = getAccountWallet(userId);
+  if (!wallet) throw new CustodyError("This account has no wallet yet");
+  const { Connection, VersionedTransaction } = await import("@solana/web3.js");
+  const conn = new Connection(rpcUrl(), "confirmed");
+  const signer = loadSigner(wallet.encryptedKey);
+
+  const tx = VersionedTransaction.deserialize(Buffer.from(base64Tx, "base64"));
+  tx.sign([signer]);
+  const latest = await conn.getLatestBlockhash("confirmed");
+  const signature = await conn.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
+
+  // A confirmation that TIMES OUT is not a failed transaction.
+  //
+  // confirmTransaction gives up when the blockhash expires, but the send has
+  // already gone out and can still land afterwards. Treating that throw as
+  // "the leg failed" is how a real on-chain swap becomes invisible to the
+  // ledger — the bot keeps the SOL in its books and the tokens in its wallet,
+  // permanently disagreeing with the chain, with pooled user money involved.
+  //
+  // So on any confirmation error we re-check by signature against transaction
+  // history before deciding. Only a transaction that is genuinely absent, or
+  // genuinely errored, is a failure.
+  try {
+    const res = await conn.confirmTransaction(
+      { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      "confirmed"
+    );
+    if (res.value.err) {
+      throw new CustodyError(`Transaction failed on-chain (${signature})`);
+    }
+    return signature;
+  } catch (e) {
+    if (e instanceof CustodyError) throw e; // a real on-chain error, not a timeout
+    if (await verifySignature(signature)) {
+      console.warn(`[custody] confirm timed out but ${signature} landed — treating as success`);
+      return signature;
+    }
+    throw new CustodyError(
+      `Could not confirm ${signature}: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+}
+
+/**
+ * Sign and send several transactions, confirming each before moving on.
+ * Stops at the first failure and reports what actually landed, so the caller
+ * can persist exactly the legs that executed.
+ */
+export async function signAndSendForAccount(
+  userId: number,
+  base64Txs: string[]
+): Promise<string[]> {
+  const signatures: string[] = [];
+  for (const b64 of base64Txs) {
+    signatures.push(await signSendConfirmOne(userId, b64));
+  }
+  return signatures;
+}
+
+export { verifySignature };
+
+/** Rent-exempt cost of creating one associated token account, in lamports. */
+export const ATA_RENT_LAMPORTS = 2_039_280;
+
+/**
+ * How many of these mints the wallet has NO associated token account for yet.
+ * Each missing one costs ~0.002 SOL rent on the first buy — a multi-leg
+ * invest sized right up to the balance fails on-chain without this headroom.
+ * One getMultipleAccounts round trip; token-2022 mints (rare among memecoins)
+ * may be miscounted as missing, which only over-reserves.
+ */
+export async function countMissingAtas(owner: string, mints: string[]): Promise<number> {
+  if (mints.length === 0) return 0;
+  const { PublicKey } = await import("@solana/web3.js");
+  const TOKEN_PROGRAM = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+  const ATA_PROGRAM = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+  const ownerKey = new PublicKey(owner);
+  const atas = mints.map(
+    (m) =>
+      PublicKey.findProgramAddressSync(
+        [ownerKey.toBytes(), TOKEN_PROGRAM.toBytes(), new PublicKey(m).toBytes()],
+        ATA_PROGRAM
+      )[0].toBase58()
+  );
+  const res = await rpc<{ value: Array<unknown | null> }>("getMultipleAccounts", [
+    atas,
+    { commitment: "confirmed" },
+  ]);
+  return (res?.value ?? []).filter((v) => v == null).length;
+}
+
+/**
+ * Raw SPL token balance of a wallet, as a bigint in the mint's base units.
+ * Used by the burn engine to transfer what it ACTUALLY received rather than
+ * what a swap was quoted — slippage means those are almost never the same,
+ * and over-transferring makes the whole burn fail.
+ */
+export async function getTokenBalanceRaw(owner: string, mint: string): Promise<bigint> {
+  const r = await rpc<{ value: Array<{ account: { data: { parsed: { info: { tokenAmount: { amount: string } } } } } }> }>(
+    "getTokenAccountsByOwner",
+    [owner, { mint }, { encoding: "jsonParsed", commitment: "confirmed" }]
+  );
+  let total = BigInt(0);
+  for (const acc of r?.value ?? []) {
+    const amt = acc?.account?.data?.parsed?.info?.tokenAmount?.amount;
+    if (amt) total += BigInt(amt);
+  }
+  return total;
+}

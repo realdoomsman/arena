@@ -1,0 +1,321 @@
+// One decision, from one model.
+//
+// Six providers behind one function. The point of the abstraction is not
+// convenience — it is FAIRNESS. Every model receives the same system prompt,
+// the same rendered snapshot, and the same output schema, and every one is
+// given the same latitude. Any difference in outcome has to come from the
+// model, or the comparison means nothing.
+//
+// ── SCHEMA IS THE INJECTION BOUNDARY ────────────────────────────────────────
+// Every provider is constrained by the same tool schema, in which a buy is an
+// INTEGER INDEX into the eligible list. A model cannot express "buy this mint
+// address" even if a token's name has talked it into wanting to, because the
+// vocabulary to say it does not exist. That, plus the executor's revalidation,
+// is why hostile token metadata is survivable.
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import type { Decision, MarketSnapshot, BotAction } from "./bot-decision";
+import { MAX_ACTIONS_PER_WAKE, MAX_BUY_FRACTION } from "./bot-decision";
+import { decisionCostUsd, type Provider } from "./bots";
+
+export class BrainError extends Error {}
+
+export type BrainResult = {
+  decision: Decision;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  latencyMs: number;
+  /** Raw text, kept for the audit trail even when parsing succeeded. */
+  raw: string;
+};
+
+/** The one schema every model answers in. */
+const DECISION_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    rationale: {
+      type: "string" as const,
+      description:
+        "Why you are doing this, in your own words. Published verbatim and never edited.",
+    },
+    actions: {
+      type: "array" as const,
+      maxItems: MAX_ACTIONS_PER_WAKE,
+      items: {
+        type: "object" as const,
+        properties: {
+          kind: { type: "string" as const, enum: ["buy", "sell"] },
+          idx: {
+            type: "integer" as const,
+            description: "For a buy: the index of the token in the eligible list. Ignored for sells.",
+          },
+          mint: {
+            type: "string" as const,
+            description: "For a sell: the mint of a position you currently hold. Ignored for buys.",
+          },
+          fraction: {
+            type: "number" as const,
+            description: `For a buy: share of your NAV to deploy, at most ${MAX_BUY_FRACTION}. For a sell: share of the position to close, 0 to 1.`,
+          },
+        },
+        required: ["kind", "fraction"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["rationale", "actions"],
+  additionalProperties: false,
+};
+
+const TOOL_NAME = "submit_decision";
+
+/** OpenAI-compatible providers, and where they live. */
+const OPENAI_COMPATIBLE: Partial<Record<Provider, { baseURL?: string; envKey: string }>> = {
+  openai: { envKey: "OPENAI_API_KEY" },
+  xai: { baseURL: "https://api.x.ai/v1", envKey: "XAI_API_KEY" },
+  deepseek: { baseURL: "https://api.deepseek.com", envKey: "DEEPSEEK_API_KEY" },
+  alibaba: {
+    baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    envKey: "DASHSCOPE_API_KEY",
+  },
+};
+
+/**
+ * `snapshot` is the trading path. `userText` is the escape hatch for non-trading
+ * calls (the weekly reflection), which must NOT be handed an eligible list or a
+ * cash position — a review that carried tradeable context could turn into a
+ * trade instruction, and reflections are supposed to be inert.
+ */
+export async function think(args: {
+  provider: Provider;
+  model: string;
+  systemPrompt: string;
+  snapshot?: MarketSnapshot;
+  userText?: string;
+}): Promise<BrainResult> {
+  const started = Date.now();
+  const userText = args.userText ?? (args.snapshot ? renderSnapshot(args.snapshot) : null);
+  if (!userText) throw new BrainError("think() needs either a snapshot or userText");
+
+  let out: { decision: Decision; tokensIn: number; tokensOut: number; raw: string };
+  if (args.provider === "anthropic") {
+    out = await thinkAnthropic(args.model, args.systemPrompt, userText);
+  } else if (args.provider === "google") {
+    out = await thinkGoogle(args.model, args.systemPrompt, userText);
+  } else if (OPENAI_COMPATIBLE[args.provider]) {
+    out = await thinkOpenAICompatible(args.provider, args.model, args.systemPrompt, userText);
+  } else {
+    throw new BrainError(`${args.provider} has no brain adapter`);
+  }
+
+  return {
+    ...out,
+    costUsd: decisionCostUsd(args.model, out.tokensIn, out.tokensOut),
+    latencyMs: Date.now() - started,
+  };
+}
+
+async function thinkAnthropic(model: string, system: string, user: string) {
+  const client = new Anthropic();
+  const res = await client.messages.create({
+    model,
+    max_tokens: 8_000,
+    system,
+    // Adaptive thinking on every current model; effort keeps the spend sane
+    // for a task that runs 720 times a month per bot.
+    thinking: { type: "adaptive" },
+    output_config: { effort: "high" },
+    tools: [
+      {
+        name: TOOL_NAME,
+        description: "Submit your trading decision for this hour.",
+        strict: true,
+        input_schema: DECISION_SCHEMA,
+      },
+    ],
+    tool_choice: { type: "tool", name: TOOL_NAME },
+    messages: [{ role: "user", content: user }],
+  });
+
+  // A safety decline is a real outcome, not a crash: record it and let the bot
+  // hold this hour rather than pretending it never woke up.
+  if (res.stop_reason === "refusal") {
+    throw new BrainError(`model declined the request (${res.stop_details?.category ?? "unknown"})`);
+  }
+
+  const block = res.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") throw new BrainError("no decision returned");
+  return {
+    decision: coerce(block.input),
+    tokensIn: res.usage.input_tokens,
+    tokensOut: res.usage.output_tokens,
+    raw: JSON.stringify(block.input),
+  };
+}
+
+async function thinkOpenAICompatible(
+  provider: Provider,
+  model: string,
+  system: string,
+  user: string
+) {
+  const cfg = OPENAI_COMPATIBLE[provider]!;
+  const client = new OpenAI({ apiKey: process.env[cfg.envKey], baseURL: cfg.baseURL });
+  const res = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: { name: TOOL_NAME, parameters: DECISION_SCHEMA, strict: true },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: TOOL_NAME } },
+  });
+
+  const call = res.choices[0]?.message?.tool_calls?.[0];
+  if (!call || call.type !== "function") throw new BrainError("no decision returned");
+  // Always JSON.parse — providers differ in how they escape tool arguments,
+  // and string-matching the serialised form breaks on the differences.
+  return {
+    decision: coerce(JSON.parse(call.function.arguments)),
+    tokensIn: res.usage?.prompt_tokens ?? 0,
+    tokensOut: res.usage?.completion_tokens ?? 0,
+    raw: call.function.arguments,
+  };
+}
+
+async function thinkGoogle(model: string, system: string, user: string) {
+  const key = process.env.GOOGLE_API_KEY;
+  if (!key) throw new BrainError("GOOGLE_API_KEY is not set");
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        tools: [{ functionDeclarations: [{ name: TOOL_NAME, parameters: DECISION_SCHEMA }] }],
+        toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [TOOL_NAME] } },
+      }),
+      signal: AbortSignal.timeout(120_000),
+    }
+  );
+  if (!res.ok) throw new BrainError(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { functionCall?: { args?: unknown } }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  };
+  const argsObj = data.candidates?.[0]?.content?.parts?.find((p) => p.functionCall)?.functionCall
+    ?.args;
+  if (!argsObj) throw new BrainError("no decision returned");
+  return {
+    decision: coerce(argsObj),
+    tokensIn: data.usageMetadata?.promptTokenCount ?? 0,
+    tokensOut: data.usageMetadata?.candidatesTokenCount ?? 0,
+    raw: JSON.stringify(argsObj),
+  };
+}
+
+/**
+ * Normalise whatever came back into a Decision.
+ *
+ * Tolerant on shape, strict on meaning: a malformed action is dropped here and
+ * the survivors still face the executor. This never invents an action, and
+ * never repairs one into a different trade than the model asked for.
+ */
+function coerce(input: unknown): Decision {
+  const o = (input ?? {}) as { rationale?: unknown; actions?: unknown };
+  const rationale = typeof o.rationale === "string" ? o.rationale : "";
+  const actions: BotAction[] = [];
+
+  if (Array.isArray(o.actions)) {
+    for (const a of o.actions) {
+      const r = a as { kind?: unknown; idx?: unknown; mint?: unknown; fraction?: unknown };
+      const fraction = typeof r.fraction === "number" ? r.fraction : NaN;
+      if (!Number.isFinite(fraction)) continue;
+      if (r.kind === "buy" && Number.isInteger(r.idx)) {
+        actions.push({ kind: "buy", idx: r.idx as number, fraction });
+      } else if (r.kind === "sell" && typeof r.mint === "string" && r.mint) {
+        actions.push({ kind: "sell", mint: r.mint, fraction });
+      }
+    }
+  }
+  return { rationale, actions };
+}
+
+/**
+ * The snapshot, as text.
+ *
+ * Deterministic: the same state renders to the same bytes for every bot in the
+ * same hour. That identity is the entire basis on which one bot's result can
+ * be compared to another's, and it is stored alongside the decision so anyone
+ * can check it was honoured.
+ */
+export function renderSnapshot(s: MarketSnapshot): string {
+  const sol = (l: number) => (l / 1e9).toFixed(4);
+  const lines: string[] = [];
+
+  lines.push(`## Your wallet`);
+  lines.push(`Total value: ${sol(s.navLamports)} SOL`);
+  lines.push(`Idle cash: ${sol(s.idleLamports)} SOL`);
+  lines.push("");
+
+  lines.push(`## Your positions (${s.positions.length})`);
+  if (s.positions.length === 0) {
+    lines.push("You hold nothing. Everything is in cash.");
+  } else {
+    lines.push("symbol | mint | value SOL | P&L % | held hours");
+    for (const p of s.positions) {
+      lines.push(
+        `${p.symbol} | ${p.mint} | ${sol(p.valueLamports)} | ${p.pnlPct.toFixed(1)}% | ${p.heldHours.toFixed(1)}`
+      );
+    }
+  }
+  lines.push("");
+
+  lines.push(`## Tradeable tokens (${s.eligible.length}) — buy by idx, nothing else is tradeable`);
+  lines.push(
+    "NEW marks a fresh launch. Most fresh launches go to zero within hours; some do not. That is the game."
+  );
+  lines.push("idx | symbol | price USD | 1h % | 24h % | liquidity USD | mcap USD | holders | launchpad");
+  for (const t of s.eligible) {
+    lines.push(
+      [
+        `${t.idx}${t.fresh ? " NEW" : ""}`,
+        t.symbol,
+        t.priceUsd.toPrecision(4),
+        t.change1h === null ? "-" : t.change1h.toFixed(1),
+        t.change24h === null ? "-" : t.change24h.toFixed(1),
+        Math.round(t.liquidityUsd),
+        t.mcapUsd ? Math.round(t.mcapUsd) : "-",
+        t.holders ?? "-",
+        t.launchpad ?? "-",
+      ].join(" | ")
+    );
+  }
+  lines.push("");
+
+  if (s.lessons.length) {
+    lines.push(`## Lessons you wrote about yourself`);
+    for (const l of s.lessons) lines.push(`- ${l}`);
+    lines.push("");
+  }
+
+  if (s.recent.length) {
+    lines.push(`## Your recent decisions, and what came of them`);
+    for (const r of s.recent) {
+      const when = new Date(r.ts).toISOString().slice(0, 16).replace("T", " ");
+      lines.push(`[${when}] ${r.rationale}`);
+      lines.push(`  → ${r.outcome ?? "no trades"}`);
+    }
+  }
+
+  return lines.join("\n");
+}

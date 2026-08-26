@@ -1,0 +1,29 @@
+# One service, one replica, one volume. See Dockerfile for why each of those
+# is a hard requirement rather than a default.
+services:
+  arena:
+    build: .
+    restart: unless-stopped
+    # 60s > the 45s drain window. A shorter stop_grace_period would SIGKILL
+    # the process mid-drain, which is the exact failure the drain exists for.
+    stop_grace_period: 60s
+    ports:
+      - "3000:3000"
+    volumes:
+      - arena-data:/data
+    environment:
+      # Required. Losing or rotating this permanently locks every wallet.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+      HELIUS_RPC_URL: ${HELIUS_RPC_URL:-}
+      ARENA_SCHEDULER_ENABLED: "true"
+      # Posting is public and irreversible — opt in deliberately.
+      ARENA_SOCIAL_ENABLED: "false"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+
+volumes:
+  arena-data:

@@ -1,0 +1,268 @@
+// Real, non-custodial execution via Jupiter.
+//
+// The server only ever BUILDS transactions — it holds no keys and no funds.
+// Every transaction is signed by the user's own wallet, and the tokens land in
+// the user's own wallet. That is what keeps this outside money-transmission:
+// under FinCEN's 2019 CVC guidance, non-custodial software that never controls
+// user funds is not a money transmitter.
+//
+// Fees:
+//   • The platform swap fee is NOT taken through Jupiter. Jupiter charges its
+//     platform fee in the OUTPUT mint, which on a buy is the memecoin — that
+//     would need a referral token account per mint (67+ and growing), and any
+//     swap whose account was missing would simply fail. Instead the fee is
+//     skimmed in SOL by the caller (see lib/fees.ts): one currency, one
+//     destination, works for every token including ones listed minutes ago.
+//   • the 0.5 SOL basket-creation fee is a plain SOL transfer the user signs.
+import { SOL_MINT } from "./wallets";
+
+const JUP = process.env.JUPITER_API_KEY ? "https://api.jup.ag" : "https://lite-api.jup.ag";
+const JUP_HEADERS: Record<string, string> = process.env.JUPITER_API_KEY
+  ? { "x-api-key": process.env.JUPITER_API_KEY }
+  : {};
+
+export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 50); // 0.50% default
+
+export class SwapError extends Error {}
+
+export type QuoteLeg = {
+  mint: string;
+  symbol: string;
+  weight: number;
+  lamportsIn: number;
+  quote: unknown;
+  outAmount: string;
+  priceImpactPct: number;
+};
+
+export function rpcUrl(): string {
+  return (
+    process.env.HELIUS_RPC_URL ??
+    process.env.NEXT_PUBLIC_RPC_URL ??
+    "https://api.mainnet-beta.solana.com"
+  );
+}
+
+/** Quote SOL → each basket leg, sized by weight. */
+export async function quoteBasketLegs(
+  legs: { mint: string; symbol: string; weight: number }[],
+  totalLamports: number,
+  slippageBps: number
+): Promise<QuoteLeg[]> {
+  const out: QuoteLeg[] = [];
+  for (const leg of legs) {
+    const lamportsIn = Math.floor(totalLamports * leg.weight);
+    if (lamportsIn < 1000) {
+      throw new SwapError(`Allocation for ${leg.symbol} is too small to route`);
+    }
+    const params = new URLSearchParams({
+      inputMint: SOL_MINT,
+      outputMint: leg.mint,
+      amount: String(lamportsIn),
+      slippageBps: String(slippageBps),
+    });
+    const res = await fetch(`${JUP}/swap/v1/quote?${params}`, {
+      headers: JUP_HEADERS,
+      signal: AbortSignal.timeout(12_000),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new SwapError(`No route for ${leg.symbol} (${res.status})`);
+    const quote = (await res.json()) as { outAmount?: string; priceImpactPct?: string };
+    if (!quote?.outAmount) throw new SwapError(`No route for ${leg.symbol}`);
+    out.push({
+      mint: leg.mint,
+      symbol: leg.symbol,
+      weight: leg.weight,
+      lamportsIn,
+      quote,
+      outAmount: quote.outAmount,
+      priceImpactPct: Number(quote.priceImpactPct ?? 0),
+    });
+  }
+  return out;
+}
+
+/**
+ * Fetch against the swap API with one retry on rate-limit/server errors.
+ * The free tier 429s under load (the price layer has its own queue for the
+ * same reason), and a 429 on a money path must surface as a RETRYABLE error —
+ * never be silently misread as "this token has no route".
+ */
+async function jupSwapFetch(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const attempt = () =>
+    fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs), cache: "no-store" });
+  let res = await attempt();
+  if (res.status === 429 || res.status >= 500) {
+    await new Promise((r) => setTimeout(r, 1_200));
+    res = await attempt();
+  }
+  return res;
+}
+
+/** Turn quotes into unsigned, base64 versioned transactions for the user. */
+export async function buildSwapTransactions(
+  legs: QuoteLeg[],
+  userPublicKey: string
+): Promise<string[]> {
+  const txs: string[] = [];
+  for (const leg of legs) {
+    const body: Record<string, unknown> = {
+      quoteResponse: leg.quote,
+      userPublicKey,
+      wrapAndUnwrapSol: true,
+      dynamicComputeUnitLimit: true,
+      prioritizationFeeLamports: "auto",
+    };
+    const res = await jupSwapFetch(
+      `${JUP}/swap/v1/swap`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...JUP_HEADERS },
+        body: JSON.stringify(body),
+      },
+      15_000
+    );
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new SwapError(`Could not build the ${leg.symbol} swap: ${text.slice(0, 120)}`);
+    }
+    const data = (await res.json()) as { swapTransaction?: string };
+    if (!data.swapTransaction) throw new SwapError(`Empty swap for ${leg.symbol}`);
+    txs.push(data.swapTransaction);
+  }
+  return txs;
+}
+
+/** Quote each held leg back to SOL, for exiting a position. */
+export async function quoteExitLegs(
+  holdings: { mint: string; symbol: string; rawAmount: string }[],
+  slippageBps: number
+): Promise<QuoteLeg[]> {
+  const out: QuoteLeg[] = [];
+  for (const h of holdings) {
+    if (BigInt(h.rawAmount) <= BigInt(0)) continue;
+    const params = new URLSearchParams({
+      inputMint: h.mint,
+      outputMint: SOL_MINT,
+      amount: h.rawAmount,
+      slippageBps: String(slippageBps),
+    });
+    const res = await jupSwapFetch(`${JUP}/swap/v1/quote?${params}`, { headers: JUP_HEADERS }, 12_000);
+    // Only a 400 means "no route back to SOL" — that leg is genuinely dead
+    // and shouldn't block exiting the rest. Anything else (429, 5xx, timeout)
+    // is a transient API failure: treating it as a dead leg let the auto-exit
+    // path WRITE OFF a perfectly sellable position at $0 because Jupiter was
+    // rate-limiting us at that moment. Transient failures must abort the
+    // redeem so the caller retries, losing nothing.
+    if (res.status === 400) continue;
+    if (!res.ok) {
+      throw new SwapError(`Exit quote for ${h.symbol} failed (${res.status}) — try again`);
+    }
+    const quote = (await res.json()) as { outAmount?: string; priceImpactPct?: string };
+    if (!quote?.outAmount) continue;
+    out.push({
+      mint: h.mint,
+      symbol: h.symbol,
+      weight: 0,
+      lamportsIn: 0,
+      quote,
+      outAmount: quote.outAmount,
+      priceImpactPct: Number(quote.priceImpactPct ?? 0),
+    });
+  }
+  return out;
+}
+
+/** Unsigned SOL transfer (used for the basket-creation fee). */
+export async function buildSolTransfer(
+  fromPubkey: string,
+  toPubkey: string,
+  lamports: number
+): Promise<string> {
+  const { Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } =
+    await import("@solana/web3.js");
+  const conn = new Connection(rpcUrl(), "confirmed");
+  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const ix = SystemProgram.transfer({
+    fromPubkey: new PublicKey(fromPubkey),
+    toPubkey: new PublicKey(toPubkey),
+    lamports,
+  });
+  const msg = new TransactionMessage({
+    payerKey: new PublicKey(fromPubkey),
+    recentBlockhash: blockhash,
+    instructions: [ix],
+  }).compileToV0Message();
+  return Buffer.from(new VersionedTransaction(msg).serialize()).toString("base64");
+}
+
+/** Confirm a signature actually landed, so we only record real executions. */
+export async function verifySignature(signature: string): Promise<boolean> {
+  try {
+    const res = await fetch(rpcUrl(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getSignatureStatuses",
+        params: [[signature], { searchTransactionHistory: true }],
+      }),
+      signal: AbortSignal.timeout(12_000),
+      cache: "no-store",
+    });
+    const data = (await res.json()) as {
+      result?: { value?: ({ confirmationStatus?: string; err?: unknown } | null)[] };
+    };
+    const st = data.result?.value?.[0];
+    return !!st && !st.err && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build an unsigned SPL token transfer.
+ *
+ * Used by the burn engine to move bought $BASKET to the incinerator. Creates
+ * the destination token account if it does not exist yet — the incinerator has
+ * no ATA for a brand-new mint, and without this the very first burn would fail.
+ */
+export async function buildTokenTransfer(
+  fromPubkey: string,
+  toPubkey: string,
+  mint: string,
+  rawAmount: string
+): Promise<string> {
+  const { Connection, PublicKey, TransactionMessage, VersionedTransaction } = await import(
+    "@solana/web3.js"
+  );
+  const {
+    getAssociatedTokenAddress,
+    createAssociatedTokenAccountInstruction,
+    createTransferInstruction,
+  } = await import("@solana/spl-token");
+
+  const conn = new Connection(rpcUrl(), "confirmed");
+  const from = new PublicKey(fromPubkey);
+  const to = new PublicKey(toPubkey);
+  const mintKey = new PublicKey(mint);
+
+  const fromAta = await getAssociatedTokenAddress(mintKey, from, true);
+  const toAta = await getAssociatedTokenAddress(mintKey, to, true);
+
+  const instructions = [];
+  const toInfo = await conn.getAccountInfo(toAta);
+  if (!toInfo) {
+    instructions.push(createAssociatedTokenAccountInstruction(from, toAta, to, mintKey));
+  }
+  instructions.push(createTransferInstruction(fromAta, toAta, from, BigInt(rawAmount)));
+
+  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const msg = new TransactionMessage({
+    payerKey: from,
+    recentBlockhash: blockhash,
+    instructions,
+  }).compileToV0Message();
+  return Buffer.from(new VersionedTransaction(msg).serialize()).toString("base64");
+}
