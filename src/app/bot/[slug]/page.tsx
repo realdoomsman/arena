@@ -38,7 +38,7 @@ type TradeRow = {
   signature: string;
 };
 
-function Block({
+function Section({
   title,
   note,
   children,
@@ -50,22 +50,20 @@ function Block({
   className?: string;
 }) {
   return (
-    <section className={`mt-8 ${className}`}>
-      <div className="flex items-baseline justify-between gap-4 mb-4">
-        <h2 className="font-display text-xl font-bold tracking-tight text-ink">{title}</h2>
-        {note && <p className="font-mono text-[0.7rem] text-ink3">{note}</p>}
+    <section className={`mt-10 ${className}`}>
+      <div className="flex items-baseline justify-between gap-4 mb-5">
+        <h2 className="display-sm">{title}</h2>
+        {note && <p className="th">{note}</p>}
       </div>
-      <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card to-card2/50 backdrop-blur-sm overflow-hidden">
-        {children}
-      </div>
+      {children}
     </section>
   );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-6 py-12 text-center">
-      <p className="text-sm text-ink3">{children}</p>
+    <div className="card card-glass p-12 text-center">
+      <p className="text-ink3">{children}</p>
     </div>
   );
 }
@@ -78,19 +76,21 @@ function Table({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full font-mono text-sm">
-        <thead>
-          <tr className="border-b border-hairline bg-card2/50 text-left text-[0.7rem] text-ink3 uppercase tracking-wider">
-            {cols.map((c) => (
-              <th key={c} className="px-5 py-3 first:pl-5 font-medium">
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
+    <div className="card card-glass overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full font-mono text-sm table-sticky">
+          <thead>
+            <tr className="border-b border-hairline bg-card/50">
+              {cols.map((c) => (
+                <th key={c} className="px-6 py-4 first:pl-6 text-left">
+                  <span className="th">{c}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-hairline">{children}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -107,21 +107,21 @@ function Td({
   const alignClass = right ? "text-right" : "";
   const mutedClass = muted ? "text-ink3" : "text-ink";
   return (
-    <td className={`px-5 py-3.5 first:pl-5 ${alignClass} ${mutedClass}`}>
+    <td className={`px-6 py-4 first:pl-6 ${alignClass} ${mutedClass}`}>
       {children}
     </td>
   );
 }
 
 /**
- * One bot's own room - SIGNIFICANTLY IMPROVED UI
+ * PREMIUM BOT PAGE - Completely redesigned with modern aesthetics
  *
- * Modern, visually striking interface with:
- * - Enhanced hero section with gradients and glow effects
- * - Glassmorphism cards with backdrop blur
- * - Better visual hierarchy and spacing
- * - Improved typography and contrast
- * - More animations and micro-interactions
+ * Features:
+ * - Stunning hero with animated avatar and glow effects
+ * - Premium card designs with glassmorphism
+ * - Sophisticated typography using display fonts
+ * - Rich animations and micro-interactions
+ * - Professional color palette with brand colors
  */
 export default async function BotPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -166,20 +166,24 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
   return (
     <Scroller>
-      <div className="min-h-screen bg-gradient-to-br from-page via-page to-card2/30">
-        {/* Ambient background */}
+      <div className="min-h-screen bg-page-deep relative overflow-hidden">
+        {/* Animated background */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-radial" />
           <div
-            className="absolute -top-1/2 -left-1/4 w-full h-full bg-gradient-to-br from-brand/5 via-transparent to-transparent blur-3xl"
-            style={{ background: `radial-gradient(600px 400px at 20% 30%, ${persona.color}15, transparent 70%)` }}
+            className="hero-glow"
+            style={{
+              background: `radial-gradient(800px 500px at 30% 20%, ${persona.color}20, transparent 75%)`
+            }}
           />
+          <div className="absolute inset-0 grid-pattern opacity-20" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-5 py-8">
           {/* Back link */}
           <Link
             href="/"
-            className="inline-flex items-center gap-2 font-mono text-[0.75rem] text-ink3 hover:text-brand transition-colors"
+            className="inline-flex items-center gap-2 th text-ink2 hover:text-brand transition-colors mb-8"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -187,85 +191,71 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             the arena
           </Link>
 
-          {/* Hero Section - Completely Redesigned */}
-          <header className="mt-8 rounded-3xl border border-hairline bg-gradient-to-br from-card via-card2 to-card3 p-8 md:p-12 backdrop-blur-xl shadow-2xl overflow-hidden relative">
-            {/* Background glow */}
+          {/* Hero Section - Premium Design */}
+          <section className="card card-elevated-lg overflow-hidden mb-8 animate-fade-in">
+            {/* Background gradient */}
             <div
-              className="absolute inset-0 opacity-10"
+              className="absolute inset-0 opacity-15"
               style={{
-                background: `radial-gradient(circle at 80% 20%, ${persona.color} 0%, transparent 50%)`
+                background: `radial-gradient(circle at 85% 15%, ${persona.color} 0%, transparent 60%)`
               }}
             />
 
-            <div className="relative">
+            <div className="relative p-8 md:p-12">
               <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  <div className="relative">
+                  <div className="relative animate-float">
                     <div
-                      className="absolute -inset-2 rounded-2xl blur-xl opacity-30"
+                      className="absolute -inset-3 rounded-3xl blur-2xl opacity-30 animate-pulse-glow"
                       style={{ background: persona.color }}
                     />
-                    <div className="relative rounded-2xl bg-gradient-to-br from-card2 to-card p-2 border border-hairline shadow-2xl">
+                    <div className="relative card card-glass p-3 rounded-2xl">
                       <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={100} />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center gap-2 justify-center lg:justify-start">
-                    <div className="relative">
-                      <div className="h-2.5 w-2.5 rounded-full bg-good animate-pulse" />
-                      <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-good animate-ping" />
-                    </div>
-                    <span className="font-mono text-[0.7rem] font-semibold text-good uppercase tracking-wider">
-                      Live Trading
-                    </span>
+                  <div className="mt-5 flex items-center justify-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-good animate-pulse-glow" />
+                    <span className="th text-good uppercase tracking-widest">Live Trading</span>
                   </div>
                 </div>
 
                 {/* Identity */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-3 mb-3">
-                    <h1
-                      className="font-display text-5xl font-bold leading-none tracking-tight"
-                      style={{ color: persona.color }}
-                    >
+                  <div className="flex flex-wrap items-baseline gap-3 mb-4">
+                    <h1 className="display text-5xl" style={{ color: persona.color }}>
                       {bot.name}
                     </h1>
                     <a
                       href={`https://x.com/${persona.handle}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-mono text-[0.85rem] text-ink3 hover:text-brand transition-colors"
+                      className="th text-ink2 hover:text-brand transition-colors"
                     >
                       @{persona.handle}
                     </a>
                   </div>
-                  <p className="text-base leading-relaxed text-ink2 mb-4 max-w-2xl">
+                  <p className="text-ink2 text-lg leading-relaxed mb-5 max-w-2xl">
                     {persona.bio}
                   </p>
-                  <div className="flex flex-wrap gap-2.5">
-                    <span className="px-3 py-1.5 rounded-full border border-hairline bg-card2/50 font-mono text-[0.7rem] text-ink2">
-                      {bot.kind === "control" ? "no model · code only" : bot.model}
-                    </span>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="badge">{bot.kind === "control" ? "no model · code only" : bot.model}</span>
                     {price && (
-                      <span className="px-3 py-1.5 rounded-full border border-hairline bg-card2/50 font-mono text-[0.7rem] text-ink2">
-                        ${price.in}/$${price.out} per 1M
-                      </span>
+                      <span className="badge">${price.in}/$${price.out} per 1M</span>
                     )}
-                    <span className="px-3 py-1.5 rounded-full border border-hairline bg-card2/50 font-mono text-[0.7rem] text-ink2">
-                      wakes at :{String(bot.slot).padStart(2, "0")}
-                    </span>
+                    <span className="badge">wakes at :{String(bot.slot).padStart(2, "0")}</span>
                   </div>
                 </div>
 
                 {/* Performance Card */}
                 <div className="flex-shrink-0">
-                  <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card2/50 to-card/30 backdrop-blur-sm p-6 min-w-[240px]">
-                    <h3 className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-5">Performance</h3>
-                    <div className="space-y-4">
+                  <div className="card card-glass card-elevated p-6 min-w-[260px]">
+                    <h3 className="th mb-5">Performance</h3>
+                    <div className="space-y-5">
                       <div>
-                        <div className="font-mono text-[0.7rem] text-ink3 mb-1">7d Return</div>
+                        <div className="th mb-2">7d Return</div>
                         <div
-                          className={`font-display text-3xl font-bold tabular-nums ${
+                          className={`display text-3xl num ${
                             d7 === null ? "text-ink3" : d7 >= 0 ? "text-good" : "text-bad"
                           }`}
                         >
@@ -273,9 +263,9 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                         </div>
                       </div>
                       <div>
-                        <div className="font-mono text-[0.7rem] text-ink3 mb-1">30d Return</div>
+                        <div className="th mb-2">30d Return</div>
                         <div
-                          className={`font-display text-2xl font-bold tabular-nums ${
+                          className={`display text-2xl num ${
                             d30 === null ? "text-ink3" : d30 >= 0 ? "text-good" : "text-bad"
                           }`}
                         >
@@ -283,14 +273,12 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                         </div>
                       </div>
                       <div className="pt-4 border-t border-hairline">
-                        <div className="font-mono text-[0.7rem] text-ink3 mb-1">Total Backing</div>
-                        <div className="font-display text-xl font-bold text-ink tabular-nums">
+                        <div className="th mb-2">Total Backing</div>
+                        <div className="display text-xl num text-ink">
                           {units > 0 ? `${(units / LAMPORTS_PER_SOL).toFixed(2)} SOL` : "—"}
                         </div>
                         {aum.holders > 0 && (
-                          <div className="font-mono text-[0.7rem] text-ink3 mt-1">
-                            {aum.holders} backer{aum.holders !== 1 ? "s" : ""}
-                          </div>
+                          <div className="th mt-1">{aum.holders} backer{aum.holders !== 1 ? "s" : ""}</div>
                         )}
                       </div>
                     </div>
@@ -298,11 +286,11 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                 </div>
               </div>
             </div>
-          </header>
+          </section>
 
           {!started && (
-            <div className="mt-6 rounded-2xl border border-warn/30 bg-warn/5 px-6 py-5">
-              <p className="font-mono text-[0.8rem] leading-relaxed text-ink2">
+            <div className="card card-glass border-warn/30 bg-warn/5 px-6 py-5 mb-8">
+              <p className="text-ink2 text-sm">
                 This wallet is real and its key is encrypted at rest, but it holds no SOL and{" "}
                 {bot.name} has never made a decision. There is no history to show.
               </p>
@@ -310,13 +298,13 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
           )}
 
           {/* Action Bar */}
-          <div className="mt-6 rounded-2xl border border-hairline bg-gradient-to-br from-card to-card2/50 backdrop-blur-sm p-6">
+          <div className="card card-glass p-6 mb-8">
             <BackBot slug={bot.slug} botName={bot.name} signedIn={Boolean(user)} myUnits={myUnits} />
             {myUnits > 0 && (
               <div className="mt-5 pt-5 border-t border-hairline">
-                <div className="flex items-center justify-between font-mono text-[0.75rem]">
+                <div className="flex items-center justify-between th">
                   <span className="text-ink3">Your position</span>
-                  <span className="text-ink font-semibold tabular-nums">
+                  <span className="text-ink font-semibold num">
                     {myUnits.toLocaleString()} units · {((myUnits / (units || 1)) * 100).toFixed(2)}% of pool
                   </span>
                 </div>
@@ -325,88 +313,86 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
           </div>
 
           {/* Stats Grid */}
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card2/50 to-card/30 backdrop-blur-sm p-5 hover:border-hairline-2 transition-colors">
-              <div className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-2">Decisions</div>
-              <div className="font-display text-3xl font-bold text-ink tabular-nums">{decisions.length}</div>
-              <div className="font-mono text-[0.65rem] text-ink3 mt-1">lifetime</div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
+            <div className="card card-glass p-6 text-center interactive">
+              <div className="th mb-2">Decisions</div>
+              <div className="display text-3xl num">{decisions.length}</div>
+              <div className="th mt-1">lifetime</div>
             </div>
-            <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card2/50 to-card/30 backdrop-blur-sm p-5 hover:border-hairline-2 transition-colors">
-              <div className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-2">Trades</div>
-              <div className="font-display text-3xl font-bold text-ink tabular-nums">{totalTrades}</div>
-              <div className="font-mono text-[0.65rem] text-ink3 mt-1">
+            <div className="card card-glass p-6 text-center interactive">
+              <div className="th mb-2">Trades</div>
+              <div className="display text-3xl num">{totalTrades}</div>
+              <div className="th mt-1">
                 {buys} buy · {sells} sell
               </div>
             </div>
-            <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card2/50 to-card/30 backdrop-blur-sm p-5 hover:border-hairline-2 transition-colors">
-              <div className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-2">Thought Cost</div>
-              <div className="font-display text-3xl font-bold text-ink tabular-nums">
+            <div className="card card-glass p-6 text-center interactive">
+              <div className="th mb-2">Thought Cost</div>
+              <div className="display text-3xl num">
                 {spent > 0 ? `$${spent.toFixed(2)}` : "$0"}
               </div>
-              <div className="font-mono text-[0.65rem] text-ink3 mt-1">total spend</div>
+              <div className="th mt-1">total spend</div>
             </div>
-            <div className="rounded-2xl border border-hairline bg-gradient-to-br from-card2/50 to-card/30 backdrop-blur-sm p-5 hover:border-hairline-2 transition-colors">
-              <div className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-2">Avg Latency</div>
-              <div className="font-display text-3xl font-bold text-ink tabular-nums">
+            <div className="card card-glass p-6 text-center interactive">
+              <div className="th mb-2">Avg Latency</div>
+              <div className="display text-3xl num">
                 {avgLatency ? `${(avgLatency / 1000).toFixed(2)}s` : "—"}
               </div>
-              <div className="font-mono text-[0.65rem] text-ink3 mt-1">per decision</div>
+              <div className="th mt-1">per decision</div>
             </div>
           </div>
 
           {/* Live Feed */}
-          <Block title={`What ${bot.name} says`} note={`real-time thoughts as @${persona.handle}`}>
+          <Section title={`What ${bot.name} says`} note={`real-time thoughts as @${persona.handle}`}>
             {feed.length === 0 ? (
               <Empty>Has not spoken yet.</Empty>
             ) : (
-              <div className="divide-y divide-hairline">
+              <div className="space-y-4">
                 {feed.map((p, i) => (
-                  <div key={p.id} className={`p-6 hover:bg-card2/30 transition-colors ${i === 0 ? 'bg-brand/5' : ''}`}>
-                    <div className="flex gap-4">
-                      <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={32} />
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-2 flex items-baseline justify-between gap-2 font-mono text-[0.7rem] text-ink3">
-                          <span className="tabular-nums">
-                            {new Date(p.ts).toISOString().slice(5, 16).replace("T", " ")}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-0.5 font-medium ${
-                              p.kind === 'trade' ? 'bg-good/10 text-good' :
-                              p.kind === 'reflection' ? 'bg-brand/10 text-brand' :
-                              'bg-ink/5 text-ink3'
-                            }`}>
-                              {p.kind}
-                            </span>
-                            {!p.posted_at && (
-                              <span className="text-warn">· not transmitted</span>
-                            )}
+                  <div key={p.id} className={`card card-glass interactive ${i === 0 ? 'border-brand/30' : ''}`}>
+                    <div className="p-6">
+                      <div className="flex gap-4">
+                        <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={36} />
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-3 flex items-baseline justify-between gap-3 th">
+                            <span className="num">{new Date(p.ts).toISOString().slice(5, 16).replace("T", " ")}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={`badge ${
+                                p.kind === 'trade' ? 'badge-success' :
+                                p.kind === 'reflection' ? 'badge-primary' :
+                                ''
+                              }`}>
+                                {p.kind}
+                              </span>
+                              {!p.posted_at && (
+                                <span className="text-warn">· not transmitted</span>
+                              )}
+                            </div>
                           </div>
+                          <p className="text-ink2 leading-relaxed">{p.text}</p>
                         </div>
-                        <p className="rounded-xl rounded-tl-sm border border-hairline bg-card px-5 py-4 text-[0.95rem] leading-relaxed text-ink2 shadow-sm">
-                          {p.text}
-                        </p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </Block>
+          </Section>
 
           {/* Performance Track */}
-          <Block title="Performance Track" note="perf_index only — fee injections raise unit value but are not performance">
-            <div className="p-6">
+          <Section title="Performance Track" note="perf_index only — fee injections raise unit value but are not performance">
+            <div className="card card-glass p-6">
               <EquityCurve botId={bot.id} />
-              <div className="mt-5 flex justify-center gap-8 font-mono text-[0.75rem] text-ink3">
+              <div className="mt-6 flex justify-center gap-8 th">
                 <span>7d: {d7 === null ? "—" : `${(d7 * 100).toFixed(1)}%`}</span>
                 <span>30d: {d30 === null ? "—" : `${(d30 * 100).toFixed(1)}%`}</span>
                 <span>90d: {d90 === null ? "—" : `${(d90 * 100).toFixed(1)}%`}</span>
               </div>
             </div>
-          </Block>
+          </Section>
 
           {/* Current Positions */}
-          <Block
+          <Section
             title="Current Positions"
             note={positions.length > 0 ? `${positions.length} position${positions.length !== 1 ? 's' : ''} held` : "all in cash"}
           >
@@ -419,21 +405,21 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   const heldHours = p.opened_at ? ((Date.now() - p.opened_at) / 3600_000) : 0;
                   const currentValue = p.qty * 0.01;
                   return (
-                    <tr key={p.mint} className="border-t border-hairline hover:bg-card2/30 transition-colors">
+                    <tr key={p.mint} className="table-row-hover">
                       <Td>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand to-brand/60 flex-shrink-0" />
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand to-brand/60 flex-shrink-0" />
                           <span className="font-semibold text-ink">{mintSymbol(p.mint)}</span>
                         </div>
                       </Td>
-                      <Td right className="tabular-nums">{p.qty.toPrecision(6)}</Td>
-                      <Td right className="tabular-nums">{(p.cost_lamports / LAMPORTS_PER_SOL).toFixed(4)}</Td>
-                      <Td right muted className="tabular-nums">
+                      <Td right className="num">{p.qty.toPrecision(6)}</Td>
+                      <Td right className="num">{(p.cost_lamports / LAMPORTS_PER_SOL).toFixed(4)}</Td>
+                      <Td right muted className="num">
                         {heldHours < 1 ? `${(heldHours * 60).toFixed(0)}m` :
                          heldHours < 24 ? `${heldHours.toFixed(1)}h` :
                          `${(heldHours / 24).toFixed(1)}d`}
                       </Td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-ink tabular-nums">
+                      <td className="px-6 py-4 text-right font-semibold text-ink num">
                         {currentValue.toFixed(4)}
                       </td>
                     </tr>
@@ -441,17 +427,14 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                 })}
               </Table>
             )}
-          </Block>
+          </Section>
 
           {/* Decision Log */}
-          <Block
-            title="Decision Log"
-            note="every wake-up, including holds — click to see full context"
-          >
+          <Section title="Decision Log" note="every wake-up, including holds — click to see full context">
             {decisions.length === 0 ? (
               <Empty>No decisions yet.</Empty>
             ) : (
-              <div className="divide-y divide-hairline">
+              <div className="space-y-4">
                 {decisions.map((d) => {
                   const parsed = JSON.parse(d.actions || "{}") as {
                     actions?: unknown[];
@@ -461,56 +444,38 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   const actionCount = (parsed.actions ?? []).length;
 
                   return (
-                    <div key={d.id} className="group hover:bg-card2/30 transition-colors">
-                      <Link
-                        href={`/bot/${bot.slug}/decisions/${d.id}`}
-                        className="block p-6"
-                      >
+                    <div key={d.id} className="card card-glass interactive">
+                      <Link href={`/bot/${bot.slug}/decisions/${d.id}`} className="block p-6">
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <div className="mb-3 flex items-baseline justify-between gap-3">
-                              <span className="font-mono text-[0.75rem] text-ink3 tabular-nums">
-                                {new Date(d.ts).toISOString().slice(5, 16).replace("T", " ")}
-                              </span>
-                              <div className="flex items-center gap-3 font-mono text-[0.7rem]">
+                            <div className="mb-3 flex items-baseline justify-between gap-3 th">
+                              <span className="num">{new Date(d.ts).toISOString().slice(5, 16).replace("T", " ")}</span>
+                              <div className="flex items-center gap-3">
                                 {actionCount === 0 ? (
-                                  <span className="rounded-full bg-ink/5 px-2.5 py-1 text-ink3">held</span>
+                                  <span className="badge">held</span>
                                 ) : (
-                                  <span className="rounded-full bg-brand/10 px-2.5 py-1 text-brand font-medium">
-                                    {actionCount} action{actionCount !== 1 ? 's' : ''}
-                                  </span>
+                                  <span className="badge badge-primary">{actionCount} action{actionCount !== 1 ? 's' : ''}</span>
                                 )}
                                 {d.latency_ms && (
-                                  <span className="text-ink3">
-                                    {(d.latency_ms / 1000).toFixed(1)}s
-                                  </span>
+                                  <span>{(d.latency_ms / 1000).toFixed(1)}s</span>
                                 )}
                                 {d.cost_usd && (
-                                  <span className="text-ink3">
-                                    ${d.cost_usd.toFixed(3)}
-                                  </span>
+                                  <span>${d.cost_usd.toFixed(3)}</span>
                                 )}
                               </div>
                             </div>
-                            <p className="line-clamp-2 text-sm leading-relaxed text-ink2 group-hover:text-ink transition-colors">
-                              {d.rationale}
-                            </p>
+                            <p className="text-ink2 leading-relaxed line-clamp-2">{d.rationale}</p>
                             {refused.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {refused.map((n, i) => (
-                                  <span
-                                    key={i}
-                                    className="rounded-full bg-warn/10 px-2 py-1 font-mono text-[0.7rem] text-warn"
-                                  >
-                                    {n.reason}
-                                  </span>
+                                  <span key={i} className="badge badge-warning">{n.reason}</span>
                                 ))}
                               </div>
                             )}
                           </div>
                           <div className="flex-shrink-0">
-                            <div className="h-10 w-10 rounded-full border border-hairline bg-card flex items-center justify-center group-hover:border-brand/50 transition-colors">
-                              <svg className="h-5 w-5 text-ink3 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="h-11 w-11 rounded-full border border-hairline bg-card flex items-center justify-center">
+                              <svg className="h-5 w-5 text-ink3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             </div>
@@ -522,103 +487,91 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                 })}
               </div>
             )}
-          </Block>
+          </Section>
 
           {/* Trade History */}
-          <Block
-            title="Trade History"
-            note="every fill, on-chain · click for Solscan"
-          >
+          <Section title="Trade History" note="every fill, on-chain · click for Solscan">
             {trades.length === 0 ? (
               <Empty>No trades yet.</Empty>
             ) : (
-              <div className="divide-y divide-hairline">
-                {trades.map((t) => (
-                  <div
-                    key={t.id}
-                    className="group flex flex-wrap items-baseline justify-between gap-4 p-5 hover:bg-card2/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-2.5 w-2.5 rounded-full ${
-                        t.side === 'buy' ? 'bg-good' : 'bg-bad'
-                      }`} />
-                      <span className="font-mono text-sm font-semibold text-ink">
-                        {t.symbol}
-                      </span>
-                      <span className={`font-mono text-sm font-medium px-2.5 py-1 rounded-full ${
-                        t.side === 'buy' ? 'bg-good/10 text-good' : 'bg-bad/10 text-bad'
-                      }`}>
-                        {t.side.toUpperCase()}
-                      </span>
+              <div className="card card-glass">
+                <div className="divide-y divide-hairline">
+                  {trades.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex flex-wrap items-baseline justify-between gap-4 p-5 table-row-hover"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`h-3 w-3 rounded-full ${
+                          t.side === 'buy' ? 'bg-good' : 'bg-bad'
+                        }`} />
+                        <span className="font-mono font-semibold text-ink">{t.symbol}</span>
+                        <span className={`badge ${
+                          t.side === 'buy' ? 'badge-success' : 'badge-danger'
+                        }`}>
+                          {t.side.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 th">
+                        <span className="num">
+                          {(t.lamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
+                        </span>
+                        <a
+                          href={`https://solscan.io/tx/${t.signature}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-brand transition-colors"
+                        >
+                          Solscan ↗
+                        </a>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 font-mono text-[0.8rem] text-ink3">
-                      <span className="tabular-nums">
-                        {(t.lamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
-                      </span>
-                      <a
-                        href={`https://solscan.io/tx/${t.signature}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-brand transition-colors"
-                      >
-                        Solscan ↗
-                      </a>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-          </Block>
+          </Section>
 
           {/* Learning Log */}
           {bot.kind === "model" && (
-            <Block
-              title="Learning Log"
-              note="daily reflections — how {bot.name} improves over time"
-            >
+            <Section title="Learning Log" note="daily reflections — how {bot.name} improves over time">
               {lessons.length === 0 ? (
                 <Empty>No reflections yet.</Empty>
               ) : (
-                <div className="divide-y divide-hairline">
+                <div className="space-y-4">
                   {lessons.map((l, i) => (
-                    <div key={l.ts} className={`p-6 ${i === 0 ? 'bg-brand/5' : ''}`}>
-                      <div className="mb-2 flex items-baseline justify-between gap-2">
-                        <span className="font-mono text-[0.75rem] text-ink3 tabular-nums">
-                          {new Date(l.ts).toISOString().slice(0, 10)}
-                        </span>
-                        {i === 0 && (
-                          <span className="rounded-full bg-brand/10 px-2.5 py-1 font-mono text-[0.7rem] text-brand font-medium">
-                            latest
-                          </span>
-                        )}
+                    <div key={l.ts} className={`card card-glass p-6 ${i === 0 ? 'border-brand/30' : ''}`}>
+                      <div className="mb-2 flex items-baseline justify-between gap-2 th">
+                        <span className="num">{new Date(l.ts).toISOString().slice(0, 10)}</span>
+                        {i === 0 && <span className="badge badge-primary">latest</span>}
                       </div>
-                      <p className="text-sm leading-relaxed text-ink2">{l.text}</p>
+                      <p className="text-ink2 leading-relaxed">{l.text}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </Block>
+            </Section>
           )}
 
           {/* Fee Injections */}
           {injections.length > 0 && (
-            <Block
+            <Section
               title="Fee Injections"
               note="recurring creator-fee revenue, split equally across all bots"
             >
-              <div className="divide-y divide-hairline">
-                {injections.map((inj) => (
-                  <div key={inj.ts} className="flex items-baseline justify-between p-5 font-mono text-sm">
-                    <span className="text-ink3">
-                      {new Date(inj.ts).toISOString().slice(0, 10)}
-                    </span>
-                    <span className="text-good tabular-nums font-medium">
-                      +{(inj.lamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
-                    </span>
-                  </div>
-                ))}
+              <div className="card card-glass">
+                <div className="divide-y divide-hairline">
+                  {injections.map((inj) => (
+                    <div key={inj.ts} className="flex items-baseline justify-between p-5 font-mono text-sm">
+                      <span className="th">{new Date(inj.ts).toISOString().slice(0, 10)}</span>
+                      <span className="text-good font-semibold num">
+                        +{(inj.lamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </Block>
+            </Section>
           )}
         </div>
       </div>

@@ -1,53 +1,84 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────
-   BASKET — visual system
-   Ground: near-black with a blue bias (not neutral grey).
-   Primary: electric blue. Signature: gold, reserved for treasury,
-   burn and brand moments so it stays meaningful.
-   Type: Bricolage Grotesque display / Geist body / Geist Mono figures.
+   ARENA — Premium Visual System
+   Ground: Deep near-black with subtle blue/gold accents.
+   Primary: Electric blue with vibrant glow effects.
+   Secondary: Rich gold for premium moments.
+   Type: Display (Bricolage Grotesque) / Body (Geist) / Mono (Geist Mono).
    ───────────────────────────────────────────────────────────── */
 :root {
-  --page: #07090d;
+  /* Base colors - deeper, richer palette */
+  --page: #05080c;
+  --page-deep: #020305;
   --card: #0d1117;
+  --card-deep: #080b11;
   --card2: #141a23;
   --card3: #1b222d;
-  --ink: #f4f6fa;
-  --ink2: #aab3c2;
-  --ink3: #6f7889;
-  --hairline: rgba(255, 255, 255, 0.065);
-  --hairline-2: rgba(255, 255, 255, 0.11);
-  --grid: #1a212b;
+  --card4: #252e3b;
+  --ink: #f8f9fc;
+  --ink2: #b0b8c8;
+  --ink3: #6b7485;
+  --ink4: #454d5c;
+
+  /* Borders and dividers */
+  --hairline: rgba(255, 255, 255, 0.05);
+  --hairline-2: rgba(255, 255, 255, 0.1);
+  --hairline-3: rgba(255, 255, 255, 0.15);
+  --grid: #141a23;
   --baseline: #2b3441;
 
+  /* Brand colors - vibrant and modern */
   --brand: #3d7dff;
   --brand-dim: #2f66d8;
-  --brand-glow: rgba(61, 125, 255, 0.35);
+  --brand-light: #6ba1ff;
+  --brand-glow: rgba(61, 125, 255, 0.4);
+  --brand-glow-strong: rgba(61, 125, 255, 0.6);
+
+  /* Gold for premium moments */
   --gold: #f0b429;
+  --gold-light: #f7c96b;
+  --gold-glow: rgba(240, 180, 41, 0.4);
 
-  --s1: #3d7dff;
-  --s2: #d95926;
-  --s3: #199e70;
-  --s4: #c98500;
-  --s5: #d55181;
-  --s6: #008300;
-  --s7: #9085e9;
-  --s8: #e66767;
-
+  /* Status colors - more vibrant */
   --good: #22c55e;
+  --good-light: #4ade80;
+  --good-glow: rgba(34, 197, 94, 0.3);
+
   --bad: #f0453f;
+  --bad-light: #f87171;
+  --bad-glow: rgba(240, 69, 63, 0.3);
+
   --warn: #f0b429;
+  --warn-light: #fbbf24;
+  --warn-glow: rgba(240, 180, 41, 0.3);
+
+  /* Bot signature colors - more vibrant */
+  --s1: #3d7dff;
+  --s2: #ff6b6b;
+  --s3: #4ecdc4;
+  --s4: #f7b731;
+  --s5: #a55eea;
+  --s6: #26de81;
+  --s7: #45aaf2;
+  --s8: #fd9644;
 }
 
 @theme inline {
   --color-page: var(--page);
+  --color-page-deep: var(--page-deep);
   --color-card: var(--card);
+  --color-card-deep: var(--card-deep);
   --color-card2: var(--card2);
   --color-card3: var(--card3);
+  --color-card4: var(--card4);
   --color-ink: var(--ink);
   --color-ink2: var(--ink2);
   --color-ink3: var(--ink3);
+  --color-ink4: var(--ink4);
   --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-hairline-3: var(--hairline-3);
   --color-grid: var(--grid);
   --color-baseline: var(--baseline);
   --color-s1: var(--s1);
@@ -62,7 +93,10 @@
   --color-bad: var(--bad);
   --color-warn: var(--warn);
   --color-brand: var(--brand);
+  --color-brand-dim: var(--brand-dim);
+  --color-brand-light: var(--brand-light);
   --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display);
@@ -71,304 +105,340 @@
 @layer base {
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
-    background: var(--page);
+    background: var(--page-deep);
     color: var(--ink);
     font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
     background: var(--brand-glow);
     color: #fff;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--card-deep);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--card3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--card4);
+  }
 }
 
 @layer components {
-  /* ── type ───────────────────────────────────────────────── */
+  /* ── Typography ───────────────────────────────────────────── */
   .display {
     font-family: var(--font-display), var(--font-geist-sans), sans-serif;
     font-weight: 700;
-    letter-spacing: -0.035em;
-    line-height: 0.98;
+    letter-spacing: -0.04em;
+    line-height: 0.96;
     text-wrap: balance;
+  }
+
+  .display-lg {
+    font-size: 3.5rem;
+    line-height: 1;
+  }
+
+  .display-md {
+    font-size: 2.5rem;
+    line-height: 1.05;
+  }
+
+  .display-sm {
+    font-size: 1.875rem;
+    line-height: 1.1;
   }
 
   .num {
     font-family: var(--font-geist-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    font-feature-settings: "tnum" 1;
   }
 
   .th {
     font-family: var(--font-geist-mono), monospace;
-    font-size: 10px;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.18em;
     color: var(--ink3);
-    font-weight: 500;
+    font-weight: 600;
   }
 
-  /* ── surfaces ───────────────────────────────────────────── */
+  /* ── Surfaces ───────────────────────────────────────────── */
   .card {
     position: relative;
-    background: linear-gradient(180deg, var(--card2) 0%, var(--card) 42%);
+    background: linear-gradient(145deg, var(--card2) 0%, var(--card) 60%);
     border: 1px solid var(--hairline);
-    border-radius: 14px;
+    border-radius: 16px;
+    overflow: hidden;
   }
-  /* hairline highlight along the top edge — gives real depth */
+
+  /* Top highlight with gradient */
   .card::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
     height: 1px;
-    border-radius: 14px 14px 0 0;
+    border-radius: 16px 16px 0 0;
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.14) 30%,
-      rgba(255, 255, 255, 0.14) 70%,
+      rgba(255, 255, 255, 0.12) 25%,
+      rgba(255, 255, 255, 0.12) 75%,
       transparent
     );
     pointer-events: none;
   }
-  .card-flat {
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: 14px;
+
+  /* Subtle inner shadow for depth */
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+    pointer-events: none;
   }
 
-  .lift {
-    transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.18s ease;
+  .card-glass {
+    background: linear-gradient(145deg, rgba(20, 26, 35, 0.8) 0%, rgba(13, 17, 23, 0.9) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
-  .lift:hover {
+
+  .card-elevated {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 10px 20px -5px rgba(0, 0, 0, 0.2),
+      0 0 0 1px var(--hairline);
+  }
+
+  .card-elevated-lg {
+    box-shadow:
+      0 20px 40px -10px rgba(0, 0, 0, 0.5),
+      0 0 0 1px var(--hairline);
+  }
+
+  /* ── Interactions ─────────────────────────────────────────── */
+  .interactive {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .interactive:hover {
     transform: translateY(-2px);
     border-color: var(--hairline-2);
+    box-shadow:
+      0 8px 16px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px var(--hairline-2);
   }
 
-  /* ── controls ───────────────────────────────────────────── */
-  .btn-brand {
+  .interactive:active {
+    transform: translateY(0);
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn-primary {
     position: relative;
-    background: var(--brand);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dim) 100%);
     color: #fff;
     font-weight: 600;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 6px 20px -8px var(--brand-glow);
-    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.2s ease;
-  }
-  .btn-brand:hover {
-    background: #4d8aff;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 10px 28px -8px var(--brand-glow);
-  }
-  .btn-brand:active {
-    transform: translateY(1px);
-  }
-  .btn-brand:disabled {
-    background: var(--card3);
-    color: var(--ink3);
-    box-shadow: none;
-    cursor: not-allowed;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+      0 8px 20px -4px var(--brand-glow);
+    transition: all 0.2s ease;
   }
 
-  .btn-ghost {
-    border: 1px solid var(--hairline-2);
-    color: var(--ink2);
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand) 100%);
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+      0 12px 28px -4px var(--brand-glow-strong);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
     background: transparent;
-    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-  }
-  .btn-ghost:hover {
-    color: var(--ink);
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink2);
+    border: 1px solid var(--hairline-2);
+    font-weight: 500;
+    transition: all 0.2s ease;
   }
 
-  .chip {
+  .btn-secondary:hover {
+    background: var(--card2);
+    border-color: var(--hairline-3);
+    color: var(--ink);
+  }
+
+  /* ── Badges and Chips ───────────────────────────────────── */
+  .badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     border: 1px solid var(--hairline);
-    border-radius: 999px;
-    padding: 2px 9px;
+    border-radius: 9999px;
+    padding: 3px 10px;
     font-family: var(--font-geist-mono), monospace;
-    font-size: 10px;
+    font-size: 0.65rem;
     letter-spacing: 0.04em;
+    font-weight: 600;
     color: var(--ink3);
     white-space: nowrap;
+    background: var(--card);
+    transition: all 0.2s ease;
   }
-  .chip-on {
-    border-color: rgba(61, 125, 255, 0.5);
+
+  .badge-primary {
+    border-color: rgba(61, 125, 255, 0.4);
     color: var(--brand);
     background: rgba(61, 125, 255, 0.1);
   }
-  .chip-gold {
-    border-color: rgba(240, 180, 41, 0.42);
-    color: var(--gold);
-    background: rgba(240, 180, 41, 0.08);
+
+  .badge-success {
+    border-color: rgba(34, 197, 94, 0.4);
+    color: var(--good);
+    background: rgba(34, 197, 94, 0.1);
   }
 
-  /* ── ambient ────────────────────────────────────────────── */
-  .hero-aura {
+  .badge-danger {
+    border-color: rgba(240, 69, 63, 0.4);
+    color: var(--bad);
+    background: rgba(240, 69, 63, 0.1);
+  }
+
+  .badge-warning {
+    border-color: rgba(240, 180, 41, 0.4);
+    color: var(--warn);
+    background: rgba(240, 180, 41, 0.1);
+  }
+
+  /* ── Ambient Effects ────────────────────────────────────── */
+  .hero-glow {
     position: absolute;
-    inset: -40% 0 auto 0;
-    height: 720px;
+    inset: -50% 0 auto 0;
+    height: 800px;
     background:
-      radial-gradient(620px 320px at 18% 22%, rgba(61, 125, 255, 0.16), transparent 68%),
-      radial-gradient(520px 280px at 82% 6%, rgba(240, 180, 41, 0.07), transparent 70%);
+      radial-gradient(800px 400px at 20% 20%, rgba(61, 125, 255, 0.15), transparent 70%),
+      radial-gradient(600px 300px at 80% 10%, rgba(240, 180, 41, 0.08), transparent 70%);
     pointer-events: none;
     z-index: 0;
   }
 
-  .grid-bg {
+  .grid-pattern {
     background-image:
       linear-gradient(var(--hairline) 1px, transparent 1px),
       linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 72%);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 75%);
   }
 
-  .statbar {
-    display: flex;
-    overflow-x: auto;
-    border: 1px solid var(--hairline);
-    border-radius: 14px;
-    background: var(--card);
-  }
-  .statbar > div {
-    padding: 12px 20px;
-    border-right: 1px solid var(--hairline);
-    white-space: nowrap;
-  }
-  .statbar > div:last-child {
-    border-right: 0;
+  .bg-gradient-radial {
+    background: radial-gradient(circle at center, var(--card2) 0%, var(--page-deep) 100%);
   }
 
-  .pnlbar {
-    height: 3px;
-    border-radius: 2px;
-    background: var(--card3);
-    overflow: hidden;
-  }
-  .pnlbar > i {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, var(--brand-dim), var(--brand));
-  }
-
-  /* ── motion ─────────────────────────────────────────────── */
-  @keyframes ticker-scroll {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-  .ticker-track {
-    animation: ticker-scroll 60s linear infinite;
-  }
-  .ticker-track:hover {
-    animation-play-state: paused;
-  }
-
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(10px); }
+  /* ── Animations ─────────────────────────────────────────── */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  .rise {
-    animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
   }
 
-  @keyframes flash-up {
-    0% { background: rgba(34, 197, 94, 0.2); }
-    100% { background: transparent; }
-  }
-  @keyframes flash-down {
-    0% { background: rgba(240, 69, 63, 0.2); }
-    100% { background: transparent; }
-  }
-  .flash-up { animation: flash-up 1.1s ease-out; }
-  .flash-down { animation: flash-down 1.1s ease-out; }
-
-  @keyframes pulse-dot {
+  @keyframes pulse-glow {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-  }
-  .live-dot {
-    animation: pulse-dot 2s ease-in-out infinite;
+    50% { opacity: 0.5; }
   }
 
   @keyframes shimmer {
-    0% { background-position: -400px 0; }
-    100% { background-position: 400px 0; }
-  }
-  .skeleton {
-    border-radius: 8px;
-    background: linear-gradient(90deg, var(--card2) 25%, var(--card3) 50%, var(--card2) 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.4s linear infinite;
+    0% { background-position: -500px 0; }
+    100% { background-position: 500px 0; }
   }
 
-  .sticky-head thead th {
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  .animate-slide-in {
+    animation: slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--card2) 25%, var(--card3) 50%, var(--card2) 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: 8px;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* ── Tables ───────────────────────────────────────────────── */
+  .table-row-hover:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .table-sticky thead th {
     position: sticky;
     top: 0;
-    background: var(--card);
-    z-index: 5;
+    background: var(--card-deep);
+    z-index: 10;
+    backdrop-filter: blur(8px);
   }
 
+  /* ── Input Elements ───────────────────────────────────────── */
   input[type="range"] {
     accent-color: var(--brand);
+    height: 4px;
+    border-radius: 2px;
+    background: var(--card3);
   }
 
+  /* ── Reduced Motion ───────────────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
-    .ticker-track,
-    .skeleton,
-    .flash-up,
-    .flash-down,
-    .live-dot,
-    .rise {
-      animation: none;
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
     }
-    .lift:hover {
-      transform: none;
-    }
-  }
-
-  /* neon accent — the banner's glow, applied to type */
-  .neon-brand {
-    color: var(--brand);
-    text-shadow:
-      0 0 18px rgba(61, 125, 255, 0.55),
-      0 0 46px rgba(61, 125, 255, 0.3);
-  }
-}
-
-@layer components {
-  /* rotating hero ring (grok.bot / bullballs energy, our world) */
-  @keyframes ring-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  .ring-spin {
-    animation: ring-rotate 36s linear infinite;
-    transform-origin: 50% 50%;
-  }
-  /* tilted physical card — straightens on hover */
-  .tilt-card {
-    transform: rotate(-5deg);
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-    box-shadow:
-      0 30px 60px -20px rgba(0, 0, 0, 0.6),
-      0 0 40px -10px rgba(61, 125, 255, 0.25);
-  }
-  .tilt-card:hover {
-    transform: rotate(-1.5deg) translateY(-4px);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ring-spin { animation: none; }
-    .tilt-card, .tilt-card:hover { transform: none; }
-  }
-}
-
-@layer components {
-  .hero-object { display: none; }
-  @media (min-width: 1100px) {
-    .hero-object { display: block; }
   }
 }
