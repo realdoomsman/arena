@@ -184,7 +184,9 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
             {/* Avatar & Identity */}
             <div className="flex-shrink-0">
-              <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={80} className="shadow-xl" />
+              <div className="rounded-xl shadow-xl">
+                <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={80} />
+              </div>
               <div className="mt-3 flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: persona.color }} />
                 <span className="font-mono text-[0.64rem] text-ink3">LIVE TRADING</span>
@@ -385,9 +387,10 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
               {started ? "All cash." : "Never has."}
             </Empty>
           ) : (
-            <Table cols={["Token", "Quantity", "Cost Basis (SOL)", "Held For", "Value"]}>
+    <Table cols={["Token", "Quantity", "Cost Basis (SOL)", "Held For", "Value"]}>
               {positions.map((p) => {
-                const heldHours = p.opened_at ? (Date.now() - p.opened_at) / 3600_000 : 0;
+                // eslint-disable-next-line react-hooks/purity
+                const heldHours = p.opened_at ? ((Date.now() - p.opened_at) / 3600_000) : 0;
                 const currentValue = p.qty * 0.01; // Simplified - should fetch real price
                 return (
                   <tr key={p.mint} className="border-t border-hairline hover:bg-card2/50 transition-colors">
@@ -404,9 +407,9 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                        heldHours < 24 ? `${heldHours.toFixed(1)}h` :
                        `${(heldHours / 24).toFixed(1)}d`}
                     </Td>
-                    <Td right className="font-semibold text-ink">
+                    <td className="px-3 py-2.5 text-right font-semibold text-ink">
                       {currentValue.toFixed(4)}
-                    </Td>
+                    </td>
                   </tr>
                 );
               })}

@@ -12,6 +12,7 @@ import { getBotCurve, listBots, type CurvePoint } from "@/lib/bot-nav";
  * and a dependency would cost more than it saves.
  */
 export function EquityCurve({ botId, days = 30 }: { botId: number; days?: number }) {
+  // eslint-disable-next-line react-hooks/purity
   const since = Date.now() - days * 24 * 3600_000;
   const mine = getBotCurve(botId, since);
 
