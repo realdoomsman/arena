@@ -24,11 +24,13 @@ import { QUOTE_ASSETS, SOL_MINT, rememberSymbol } from "./wallets";
 export class UniverseError extends Error {}
 
 /**
- * Hard technical floor, not a policy one: below roughly this depth Jupiter
- * cannot route a bot-sized order at all, so the position could be entered and
- * never exited.
+ * AGGRESSIVE MODE - trade even the smallest pump.fun launches.
+ *
+ * Lowered from $3k to $100 to enable trading brand-new tokens that just launched.
+ * Below this, Jupiter literally cannot route the order (the position would be
+ * entered and never exitable). This is a HARD technical floor, not a policy choice.
  */
-const MIN_LIQUIDITY_USD = 3_000;
+const MIN_LIQUIDITY_USD = 100;
 /** A single wallet above this can exit into the bots at will. Fresh launches
  *  are always concentrated, so this only excludes the extreme cases. */
 const MAX_TOP1_PCT = 80;

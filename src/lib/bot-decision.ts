@@ -46,19 +46,18 @@ export type MarketSnapshot = {
 };
 
 // ── Executor limits ─────────────────────────────────────────────────────────
-// Alpha Arena's clearest finding was that the winners won on discipline, not
-// intelligence, and that "a prompt is a suggestion" — models routinely ignored
-// their own stated rules. So these are enforced in code, after the model has
-// spoken, and a violation is clamped or dropped rather than argued with.
+// AGGRESSIVE MODE: allow maximum position sizes and trading frequency
+// Winners in Alpha Arena won on DISCIPLINE, not intelligence — these limits
+// prevent self-destructive behavior while enabling maximum upside capture
 
-/** Most trades one wake-up may produce. Overtrading was a top-3 killer. */
-export const MAX_ACTIONS_PER_WAKE = 4;
-/** Largest share of NAV a single buy may consume. */
-export const MAX_BUY_FRACTION = 0.25;
+/** Most trades one wake-up may produce. Increased from 4 to 10 for aggressive mode. */
+export const MAX_ACTIONS_PER_WAKE = 10;
+/** Largest share of NAV a single buy may consume. Increased from 25% to 50% - concentrated high-conviction bets. */
+export const MAX_BUY_FRACTION = 0.50;
 /** Below this a swap costs more in fees and slippage than the position is worth. */
 export const MIN_TRADE_LAMPORTS = 8_000_000; // ~0.008 SOL
-/** Never deploy the last of the cash — a fully-deployed bot cannot react. */
-export const CASH_FLOOR_FRACTION = 0.1;
+/** Never deploy the last of the cash — a fully-deployed bot cannot react. Lowered from 10% to 2% for maximum exposure. */
+export const CASH_FLOOR_FRACTION = 0.02;
 
 export class DecisionError extends Error {}
 
