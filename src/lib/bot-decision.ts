@@ -46,18 +46,18 @@ export type MarketSnapshot = {
 };
 
 // ── Executor limits ─────────────────────────────────────────────────────────
-// AGGRESSIVE MODE: allow maximum position sizes and trading frequency
-// Winners in Alpha Arena won on DISCIPLINE, not intelligence — these limits
-// prevent self-destructive behavior while enabling maximum upside capture
+// INFINITE MODE: No artificial caps on position size, trading frequency, or cash deployment
+// Safety gates remain (safety checks, authority verification, rug detection)
+// but strategic constraints are removed - let the models deploy however they want
 
-/** Most trades one wake-up may produce. Increased from 4 to 10 for aggressive mode. */
-export const MAX_ACTIONS_PER_WAKE = 10;
-/** Largest share of NAV a single buy may consume. Increased from 25% to 50% - concentrated high-conviction bets. */
-export const MAX_BUY_FRACTION = 0.50;
+/** NO LIMIT on trades per wake-up. Bots decide their own cadence. */
+export const MAX_ACTIONS_PER_WAKE = Infinity;
+/** NO LIMIT on position size. A bot can put 100% of NAV into one position if it wants. */
+export const MAX_BUY_FRACTION = 1.0;
 /** Below this a swap costs more in fees and slippage than the position is worth. */
 export const MIN_TRADE_LAMPORTS = 8_000_000; // ~0.008 SOL
-/** Never deploy the last of the cash — a fully-deployed bot cannot react. Lowered from 10% to 2% for maximum exposure. */
-export const CASH_FLOOR_FRACTION = 0.02;
+/** NO CASH FLOOR. Bots can deploy 100% of capital if they choose. */
+export const CASH_FLOOR_FRACTION = 0;
 
 export class DecisionError extends Error {}
 
