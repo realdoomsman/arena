@@ -1,13 +1,57 @@
-import type { PricePoint } from "@/lib/prices";
+"use client";
+
+import { useEffect, useState } from "react";
+
+type PricePoint = [ts: number, close: number];
 
 /**
- * A week of hourly closes, as one line. Real data or nothing: when the
- * history feed has no pool for the token, no chart renders — a flat
- * placeholder line would be exactly the fake chart this site exists not to
- * show. Display only; valuations never read from here.
+ * A week of hourly closes, fetched from GeckoTerminal BY THE VISITOR'S OWN
+ * BROWSER. Server-side charting died on arrival: the host's egress IP is
+ * shared across the platform's tenants, so the keyless rate limit there is
+ * everyone's, permanently exhausted. Each visitor's IP has its own budget,
+ * and the API sends `access-control-allow-origin: *` on purpose.
+ *
+ * Display only — trading valuations never read from here. Real data or
+ * nothing: on any failure the component renders nothing rather than a
+ * placeholder line pretending to be a market.
  */
-export function PriceChart({ points }: { points: PricePoint[] }) {
-  if (points.length < 2) return null;
+export function PriceChart({ mint }: { mint: string }) {
+  const [points, setPoints] = useState<PricePoint[] | null>(null);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const base = "https://api.geckoterminal.com/api/v2/networks/solana";
+        const pools = (await (
+          await fetch(`${base}/tokens/${mint}/pools?page=1`, { signal: AbortSignal.timeout(10_000) })
+        ).json()) as { data?: { attributes?: { address?: string } }[] };
+        const pool = pools.data?.[0]?.attributes?.address;
+        if (!pool) return;
+
+        const ohlcv = (await (
+          await fetch(`${base}/pools/${pool}/ohlcv/hour?aggregate=1&limit=168&currency=usd`, {
+            signal: AbortSignal.timeout(10_000),
+          })
+        ).json()) as {
+          data?: { attributes?: { ohlcv_list?: [number, number, number, number, number, number][] } };
+        };
+        const rows = ohlcv.data?.attributes?.ohlcv_list ?? [];
+        const pts: PricePoint[] = rows
+          .map((r): PricePoint => [r[0] * 1000, r[4]])
+          .filter((p) => Number.isFinite(p[1]) && p[1] > 0)
+          .sort((a, b) => a[0] - b[0]);
+        if (!dead && pts.length >= 2) setPoints(pts);
+      } catch {
+        /* no chart beats a fake chart */
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, [mint]);
+
+  if (!points) return null;
 
   const values = points.map((p) => p[1]);
   const min = Math.min(...values);
