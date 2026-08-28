@@ -97,6 +97,16 @@ function namechip(color: string, name: string, role?: string) {
   );
 }
 
+function retchip(name: string, ret: string, tone: string, gold = false) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", border: `1px solid ${gold ? "rgba(255,210,63,.45)" : LINE}`, background: PANEL, borderRadius: 2, padding: "9px 15px", margin: 7, fontSize: 25 }}>
+      <div style={{ display: "flex", color: INK, marginRight: 12 }}>{name}</div>
+      <div style={{ display: "flex", color: tone }}>{ret}</div>
+      {gold && <div style={{ display: "flex", color: "#ffd23f", fontSize: 15, marginLeft: 12, letterSpacing: 1 }}>THE BAR</div>}
+    </div>
+  );
+}
+
 function chip(text: string, on = false) {
   return (
     <div style={{ display: "flex", alignItems: "center", fontSize: 26, color: on ? GOOD : INK2, border: `1px solid ${on ? "rgba(46,226,122,.4)" : "#33363c"}`, borderRadius: 2, padding: "8px 18px", margin: 8 }}>
@@ -161,6 +171,38 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
           </div>
           <div style={{ display: "flex", alignItems: "center", padding: "22px 40px", borderTop: `1px solid ${LINE}`, fontSize: 26 }}>
             <div style={{ display: "flex", color: INK2 }}>the bar: beat a monkey throwing darts</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
+          </div>
+        </div>
+      ),
+    };
+  }
+
+  if (slug === "post-monkey") {
+    return {
+      w: 1200, h: 675,
+      node: (
+        <div style={FS}>
+          {shotBar("AUTOMATA", "the control that keeps everyone honest")}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center", padding: "0 56px" }}>
+            <div style={{ display: "flex", color: INK3, fontSize: 24, letterSpacing: 3, textTransform: "uppercase" }}>can a frontier model beat a monkey throwing darts?</div>
+            <div style={{ display: "flex", color: AMBER, fontSize: 88, fontWeight: 700, letterSpacing: -3, marginTop: 16 }}>Beat the monkey.</div>
+            <div style={{ display: "flex", color: INK2, fontSize: 26, marginTop: 18, textAlign: "center" }}>&ldquo;Monkey&rdquo; buys at random — no model, no data. It is the bar every AI has to clear.</div>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 34, maxWidth: 1040 }}>
+              {retchip("Opus", "+26.6%", GOOD)}
+              {retchip("Fable", "+20.1%", GOOD)}
+              {retchip("Diamond", "+18.4%", GOOD)}
+              {retchip("Gemini", "+12.7%", GOOD)}
+              {retchip("GPT", "+8.0%", GOOD)}
+              {retchip("Monkey", "+4.3%", "#ffd23f", true)}
+              {retchip("DeepSeek", "+3.0%", BAD)}
+              {retchip("Index", "+2.0%", BAD)}
+              {retchip("Grok", "-6.1%", BAD)}
+              {retchip("Luna", "-12.7%", BAD)}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "22px 40px", borderTop: `1px solid ${LINE}`, fontSize: 25 }}>
+            <div style={{ display: "flex", color: INK2 }}>beating the market isn&apos;t the claim. beating random is.</div>
             <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
           </div>
         </div>
