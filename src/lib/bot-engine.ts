@@ -88,6 +88,7 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
   ).map((r) => r.text);
 
   const { notesForSnapshot } = await import("./bot-notes");
+  const { getPlaybook } = await import("./bot-memory");
 
   // The tide, not just the fish: memecoins are high-beta on SOL, and a wake
   // that cannot see SOL falling reads every red token as token-specific.
@@ -103,6 +104,7 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
     eligible,
     recent,
     lessons,
+    playbook: getPlaybook(bot.id)?.text ?? null,
     backerNotes: notesForSnapshot(bot.id),
   };
 }

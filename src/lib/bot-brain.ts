@@ -364,6 +364,12 @@ export function renderSnapshot(s: MarketSnapshot): string {
   }
   lines.push("");
 
+  if (s.playbook) {
+    lines.push(`## Your playbook — you wrote this, and only you can rewrite it (nightly study)`);
+    lines.push(s.playbook);
+    lines.push("");
+  }
+
   if (s.lessons.length) {
     lines.push(`## Lessons you wrote about yourself`);
     for (const l of s.lessons) lines.push(`- ${l}`);

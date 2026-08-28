@@ -199,6 +199,24 @@ function createDb(): DatabaseSync {
       adopted_lesson TEXT                      -- set when the bot carried it into memory
     );
     CREATE INDEX IF NOT EXISTS idx_bot_notes ON bot_notes(bot_id, ts DESC);
+    -- Each bot's self-written strategy playbook. ONLY the bot itself writes
+    -- it, during its daily study — no human, no operator, no other bot. It
+    -- rides in every snapshot, so it is the bot's own brain made persistent.
+    -- Every revision is archived: watching a strategy evolve is the show.
+    CREATE TABLE IF NOT EXISTS bot_playbooks (
+      bot_id INTEGER PRIMARY KEY REFERENCES bots(id),
+      text TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS bot_playbook_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bot_id INTEGER NOT NULL REFERENCES bots(id),
+      ts INTEGER NOT NULL,
+      version INTEGER NOT NULL,
+      text TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_playbook_hist ON bot_playbook_history(bot_id, ts DESC);
     -- Exactly one process may run the wake-up loop.
     --
     -- Two schedulers means two wake-ups per hour, which means the same bot

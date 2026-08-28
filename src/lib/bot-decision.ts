@@ -53,6 +53,8 @@ export type MarketSnapshot = {
   recent: { ts: number; rationale: string; actions: BotAction[]; outcome: string | null }[];
   /** Lessons the bot wrote about itself in its last reflection. */
   lessons: string[];
+  /** The bot's own self-written strategy playbook. Only the bot edits it. */
+  playbook?: string | null;
   /** Screened notes from this bot's own backers. Advisory, untrusted data. */
   backerNotes?: { text: string; stakeUsd: number }[];
 };

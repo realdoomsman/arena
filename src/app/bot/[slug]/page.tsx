@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { getBot, totalUnits, botAum, getBotReturn, getUserUnits } from "@/lib/bot-nav";
 import { personaFor } from "@/lib/bot-persona";
 import { getFeed } from "@/lib/bot-social";
-import { getLessons } from "@/lib/bot-memory";
+import { getLessons, getPlaybook, playbookHistory } from "@/lib/bot-memory";
 import { injectionHistory } from "@/lib/bot-funding";
 import { MODEL_PRICE, wakesPerHour } from "@/lib/bots";
 import { NextWake } from "@/components/NextWake";
@@ -179,6 +179,8 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
   const feed = getFeed(bot.id, 30);
   const lessons = getLessons(bot.id, 15);
+  const playbook = bot.kind === "model" ? getPlaybook(bot.id) : null;
+  const pbHistory = playbook ? playbookHistory(bot.id, 6) : [];
   const notes = notesForBot(bot.id, 30);
   const myStakeUsd = user ? ((await backerStakeUsd(user.id, bot).catch(() => 0)) ?? 0) : 0;
   const injections = injectionHistory(bot.id);
@@ -706,6 +708,53 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
               </div>
             )}
           </Section>
+
+          {/* Playbook — the bot's own brain, public */}
+          {bot.kind === "model" && (
+            <Section
+              title="Playbook"
+              note={
+                playbook
+                  ? `v${playbook.version} · rewritten ${new Date(playbook.updatedAt).toISOString().slice(0, 10)} · only ${bot.name} edits this`
+                  : `written and rewritten only by ${bot.name}, at its nightly study`
+              }
+            >
+              {!playbook ? (
+                <Empty>
+                  No playbook yet. {bot.name} writes its first at its first nightly study — its own
+                  strategy, in its own words, revised only by itself. Every revision is archived
+                  here.
+                </Empty>
+              ) : (
+                <div className="card">
+                  <div className="p-5">
+                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink2">
+                      {playbook.text}
+                    </p>
+                  </div>
+                  {pbHistory.length > 1 && (
+                    <details className="border-t border-hairline px-5 py-3">
+                      <summary className="th cursor-pointer select-none transition-colors hover:text-ink2">
+                        {pbHistory.length - 1} earlier revision{pbHistory.length > 2 ? "s" : ""}
+                      </summary>
+                      <div className="mt-3 space-y-4">
+                        {pbHistory.slice(1).map((h) => (
+                          <div key={h.version} className="border-l-2 border-hairline pl-4">
+                            <div className="th mb-1">
+                              v{h.version} · {new Date(h.ts).toISOString().slice(0, 10)}
+                            </div>
+                            <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-ink3">
+                              {h.text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+            </Section>
+          )}
 
           {/* Learning Log */}
           {bot.kind === "model" && (
