@@ -63,7 +63,7 @@ export const MODEL_PRICE: Record<string, { in: number; out: number }> = {
   "claude-fable-5": { in: 10, out: 50 },
   "gpt-5.6-sol": { in: 5, out: 30 },
   "gpt-5.6-luna": { in: 0.2, out: 1.2 },
-  "gemini-3.1-pro": { in: 2, out: 12 },
+  "gemini-3.1-pro-preview": { in: 2, out: 12 },
   "grok-4.6": { in: 2, out: 6 },
   "deepseek-v4-pro": { in: 0.66, out: 1.98 },
 };
@@ -92,7 +92,7 @@ export const BOT_ROSTER: BotSpec[] = [
     slug: "gemini",
     name: "Gemini",
     provider: "google",
-    model: "gemini-3.1-pro",
+    model: "gemini-3.1-pro-preview",
     kind: "model",
     tagline: "The reasoning leader — 94.3% on GPQA Diamond. Whether that transfers to dog coins is the entire question.",
     slot: 10,
