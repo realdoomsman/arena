@@ -14,9 +14,9 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "arena-stats-"));
 process.env.DATA_DIR = tmp;
 process.env.ENCRYPTION_KEY = "0".repeat(64);
 
-const { botTradeStats, sparkline } = await import("./bot-stats");
+const { botTradeStats, sparkline, decisionQuality } = await import("./bot-stats");
 const { provisionBots } = await import("./bot-provision");
-const { getBot } = await import("./bot-nav");
+const { getBot, botLiabilityLamports } = await import("./bot-nav");
 const { getDb } = await import("./db");
 
 const SOL = 1_000_000_000;
@@ -77,4 +77,53 @@ test("sparkline downsamples but always keeps the latest point", () => {
   const s = sparkline(bot.id, 7, 40);
   assert.equal(s.length, 40);
   assert.equal(s[s.length - 1], 199, "the current value survives downsampling");
+});
+
+// ── Decision quality ─────────────────────────────────────────────────────────
+
+test("decisionQuality counts holds, refusals and taken actions", () => {
+  const bot = getBot("gpt")!;
+  const db = getDb();
+  const ins = (actions: unknown, error: string | null = null) =>
+    db
+      .prepare(
+        `INSERT INTO bot_decisions (bot_id, ts, market_snapshot, rationale, actions, error)
+         VALUES (?, ?, '{}', '', ?, ?)`
+      )
+      .run(bot.id, Date.now(), JSON.stringify(actions), error);
+
+  // A hold (0 kept) with one refused note.
+  ins({ actions: [], notes: [{ kept: false, reason: "x" }] });
+  // Two taken actions, no refusals.
+  ins({ actions: [{ kind: "buy" }, { kind: "buy" }], notes: [{ kept: true }, { kept: true }] });
+  // One taken, one refused.
+  ins({ actions: [{ kind: "sell" }], notes: [{ kept: true }, { kept: false, reason: "y" }] });
+  // An errored wake is excluded entirely.
+  ins({ actions: [], notes: [] }, "boom");
+
+  const q = decisionQuality(bot.id);
+  assert.equal(q.decisions, 3, "errored wake excluded");
+  assert.equal(q.holds, 1);
+  assert.equal(q.refused, 2);
+  assert.equal(q.taken, 3);
+});
+
+test("botLiabilityLamports is units times latest unit value, 0 with no backers", () => {
+  const bot = getBot("gemini")!;
+  assert.equal(botLiabilityLamports(bot.id), 0, "no units, nothing owed");
+
+  const db = getDb();
+  db.prepare(
+    "INSERT INTO users (email, username, pass_hash, created_at) VALUES ('liab@x.com','liab','x:y',?)"
+  ).run(Date.now());
+  const uid = (db.prepare("SELECT id FROM users WHERE username='liab'").get() as { id: number }).id;
+  db.prepare(
+    "INSERT INTO bot_units (bot_id, user_id, units, cost_lamports) VALUES (?, ?, ?, ?)"
+  ).run(bot.id, uid, 2 * SOL, 2 * SOL);
+  db.prepare(
+    `INSERT INTO bot_snapshots (bot_id, ts, nav_lamports, sol_lamports, units, nav_per_unit, perf_index, holdings)
+     VALUES (?, ?, 1, 1, ?, 1.5, 1, '[]')`
+  ).run(bot.id, Date.now(), 2 * SOL);
+
+  assert.equal(botLiabilityLamports(bot.id), Math.floor(2 * SOL * 1.5), "units x latest nav_per_unit");
 });

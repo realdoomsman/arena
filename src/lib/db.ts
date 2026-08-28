@@ -269,6 +269,18 @@ function createDb(): DatabaseSync {
   } catch {
     /* already there */
   }
+  // Clickwrap consent: the terms version a user accepted, and when. Stored so
+  // acceptance is provable per account.
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN terms_version TEXT");
+  } catch {
+    /* already there */
+  }
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN terms_accepted_at INTEGER");
+  } catch {
+    /* already there */
+  }
 
   return db;
 }

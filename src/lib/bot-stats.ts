@@ -112,6 +112,48 @@ export function sparkline(botId: number, days = 7, maxPoints = 40): number[] {
   return Array.from({ length: maxPoints }, (_, i) => values[Math.round(i * step)]);
 }
 
+export type DecisionQuality = {
+  /** Wake-ups that produced a decision (errors excluded). */
+  decisions: number;
+  /** Decisions where the bot chose to do nothing — cash IS a position. */
+  holds: number;
+  /** Actions the model proposed that the executor/safety/impact gate refused. */
+  refused: number;
+  /** Actions that survived validation and were attempted. */
+  taken: number;
+};
+
+/**
+ * Judgment quality, not just P&L. The default correct move most hours is to
+ * HOLD CASH, and refusing junk (safety gate, price impact, dust) is a skill —
+ * so a bot that holds and refuses well is doing its job even with few trades.
+ * Read straight from the published decision record: actions stores {actions,
+ * notes}, and a note with kept:false is a refusal.
+ */
+export function decisionQuality(botId: number): DecisionQuality {
+  const rows = getDb()
+    .prepare("SELECT actions FROM bot_decisions WHERE bot_id = ? AND error IS NULL")
+    .all(botId) as { actions: string }[];
+  let holds = 0;
+  let refused = 0;
+  let taken = 0;
+  for (const r of rows) {
+    try {
+      const parsed = JSON.parse(r.actions) as {
+        actions?: unknown[];
+        notes?: { kept: boolean }[];
+      };
+      const kept = parsed.actions?.length ?? 0;
+      taken += kept;
+      if (kept === 0) holds++;
+      refused += (parsed.notes ?? []).filter((n) => !n.kept).length;
+    } catch {
+      /* a malformed row is still a decision that happened */
+    }
+  }
+  return { decisions: rows.length, holds, refused, taken };
+}
+
 export type Fill = {
   ts: number;
   slug: string;

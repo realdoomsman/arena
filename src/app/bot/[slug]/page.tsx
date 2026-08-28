@@ -18,7 +18,7 @@ import { Avatar } from "@/components/Avatar";
 import { NoteBox } from "@/components/NoteBox";
 import { Scroller } from "@/components/Scroller";
 import { notesForBot, backerStakeUsd, MIN_NOTE_USD, MAX_NOTE_CHARS } from "@/lib/bot-notes";
-import { botTradeStats } from "@/lib/bot-stats";
+import { botTradeStats, decisionQuality } from "@/lib/bot-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -209,6 +209,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
     .get(bot.id) as { n: number; buys: number; sells: number };
 
   const tstats = botTradeStats(bot.id);
+  const quality = decisionQuality(bot.id);
   const started = units > 0 || decStats.n > 0;
   const spent = decStats.spent;
   const totalTrades = tradeStats.n;
@@ -418,7 +419,11 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             <div className="card p-5 text-center">
               <div className="th mb-2">Decisions</div>
               <div className="display text-3xl num">{decStats.n}</div>
-              <div className="th mt-1">lifetime</div>
+              <div className="th mt-1">
+                {quality.decisions > 0
+                  ? `${quality.holds} held · ${quality.refused} refused`
+                  : "lifetime"}
+              </div>
             </div>
             <div className="card p-5 text-center">
               <div className="th mb-2">Trades</div>

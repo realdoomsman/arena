@@ -82,6 +82,21 @@ export function totalUnits(botId: number): number {
 }
 
 /**
+ * What the bot owes its unit-holders right now, in lamports: total units times
+ * the latest unit value. Proof-of-liabilities compares this to the wallet's
+ * on-chain balance (assets) so anyone can check the book is solvent. Uses the
+ * last snapshot's nav_per_unit; genesis price (1) before any snapshot exists.
+ */
+export function botLiabilityLamports(botId: number): number {
+  const units = totalUnits(botId);
+  if (!(units > 0)) return 0;
+  const snap = getDb()
+    .prepare("SELECT nav_per_unit FROM bot_snapshots WHERE bot_id = ? ORDER BY ts DESC, id DESC LIMIT 1")
+    .get(botId) as { nav_per_unit: number } | undefined;
+  return Math.floor(units * (snap?.nav_per_unit ?? GENESIS_UNIT_PRICE));
+}
+
+/**
  * What a bot is worth right now, in lamports.
  *
  * Returns null when ANY held position cannot be priced. That is not a

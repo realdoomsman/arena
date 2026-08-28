@@ -5,6 +5,10 @@ import { getDb } from "./db";
 const COOKIE_NAME = "arena_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Bump when Terms/Privacy change materially; new signups record the version
+ *  they accepted. */
+export const TERMS_VERSION = "2026-08-28";
+
 /**
  * The DB stores only a hash of the session token; the cookie holds the token
  * itself. A leaked database copy (backup, snapshot) then contains nothing that

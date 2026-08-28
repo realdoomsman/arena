@@ -16,18 +16,25 @@ export function AuthForm({ googleEnabled = false }: { googleEnabled?: boolean })
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "register" && !agree) {
+      setError("Please agree to the Terms and Privacy Policy first");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const res = await fetch(`/api/auth/${mode}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(mode === "login" ? { email, password } : { email, username, password }),
+        body: JSON.stringify(
+          mode === "login" ? { email, password } : { email, username, password, agreeTerms: agree }
+        ),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -79,13 +86,35 @@ export function AuthForm({ googleEnabled = false }: { googleEnabled?: boolean })
         autoComplete={mode === "login" ? "current-password" : "new-password"}
       />
 
+      {mode === "register" && (
+        <label className="mt-1 flex cursor-pointer items-start gap-2 text-[0.72rem] leading-relaxed text-ink3">
+          <input
+            type="checkbox"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+            className="mt-0.5 accent-[var(--brand)]"
+          />
+          <span>
+            I have read and agree to the{" "}
+            <a href="/terms" target="_blank" className="text-brand transition-colors hover:brightness-110">
+              Terms
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" target="_blank" className="text-brand transition-colors hover:brightness-110">
+              Privacy Policy
+            </a>
+            , and understand backing a bot risks total loss.
+          </span>
+        </label>
+      )}
+
       {error && (
         <p className="rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
       )}
 
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || (mode === "register" && !agree)}
         className="btn-primary mt-2 rounded-xl px-4 py-2.5 font-display text-sm tracking-tight disabled:opacity-50"
       >
         {busy ? "Working…" : mode === "login" ? "Sign in" : "Create account"}

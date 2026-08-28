@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
-import { createSession, clientIp, rateLimit } from "@/lib/auth";
+import { createSession, clientIp, rateLimit, TERMS_VERSION } from "@/lib/auth";
 import { custodyConfigured, generateWallet } from "@/lib/custody";
 import { googleOAuthEnabled, googleExchange, usernameFromEmail, OAUTH_STATE_COOKIE } from "@/lib/oauth";
 
@@ -69,11 +69,22 @@ export async function GET(req: Request) {
     try {
       const res = db
         .prepare(
-          "INSERT INTO users (email, username, pass_hash, wallet_address, wallet_key, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+          "INSERT INTO users (email, username, pass_hash, wallet_address, wallet_key, created_at, terms_version, terms_accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         )
         // No password exists for this account — the sentinel can never match
         // any typed password because verifyPassword requires salt:hex-hash.
-        .run(identity.email, username, "oauth:google", wallet.address, wallet.encryptedKey, Date.now());
+        // Terms are shown and linked on Google's own consent screen, so first
+        // arrival records acceptance of the current version.
+        .run(
+          identity.email,
+          username,
+          "oauth:google",
+          wallet.address,
+          wallet.encryptedKey,
+          Date.now(),
+          TERMS_VERSION,
+          Date.now()
+        );
       await createSession(Number(res.lastInsertRowid));
       return back("/account");
     } catch (e) {

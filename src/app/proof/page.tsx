@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
-import { listBots } from "@/lib/bot-nav";
+import { listBots, totalUnits, botLiabilityLamports, botAum } from "@/lib/bot-nav";
 import { getTreasury } from "@/lib/treasury";
 import { lastReconcile, crashedWakes } from "@/lib/bot-reconcile";
 import { personaFor } from "@/lib/bot-persona";
+import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { Avatar } from "@/components/Avatar";
 import { Scroller } from "@/components/Scroller";
 
@@ -26,6 +27,18 @@ export default function ProofPage() {
   const treasury = getTreasury();
   const recon = lastReconcile();
   const crashed = crashedWakes();
+
+  const liabilities = bots
+    .map((b) => ({
+      slug: b.slug,
+      name: b.name,
+      wallet: b.wallet,
+      backers: botAum(b.id).holders,
+      units: totalUnits(b.id),
+      owedSol: botLiabilityLamports(b.id) / LAMPORTS_PER_SOL,
+    }))
+    .filter((r) => r.units > 0);
+  const totalOwedSol = liabilities.reduce((a, r) => a + r.owedSol, 0);
 
   const decisions = (db.prepare("SELECT COUNT(*) AS n FROM bot_decisions").get() as { n: number }).n;
   const trades = (db.prepare("SELECT COUNT(*) AS n FROM bot_trades").get() as { n: number }).n;
@@ -116,6 +129,80 @@ export default function ProofPage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="mt-8">
+          <div className="section-label mb-3">
+            <span>Proof of liabilities</span>
+            <span className="text-ink4 normal-case tracking-normal">
+              what is owed to backers — compare to each wallet above
+            </span>
+          </div>
+          {liabilities.length === 0 ? (
+            <p className="card p-5 text-[13px] leading-relaxed text-ink3">
+              No bot has outside backers yet, so nothing is owed. The house seed is the only
+              capital in play. This table fills in as people back bots — and always footnotes
+              the on-chain assets that must cover it.
+            </p>
+          ) : (
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] text-[13px]">
+                  <thead>
+                    <tr className="border-b border-hairline bg-card2">
+                      {["Bot", "Backers", "Units", "Owed (SOL)", "Assets"].map((h, i) => (
+                        <th key={h} className={`px-4 py-2 ${i >= 1 ? "text-right" : "text-left"}`}>
+                          <span className="th">{h}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-hairline">
+                    {liabilities.map((r) => (
+                      <tr key={r.slug} className="table-row-hover">
+                        <td className="px-4 py-2.5">
+                          <Link href={`/bot/${r.slug}`} className="flex items-center gap-2">
+                            <Avatar slug={r.slug} name={r.name} color={personaFor(r.slug).color} size={20} />
+                            <span className="font-semibold text-ink">{r.name}</span>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-right num text-ink2">{r.backers}</td>
+                        <td className="px-4 py-2.5 text-right num text-ink3">{Math.round(r.units).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right num text-ink">{r.owedSol.toFixed(3)}</td>
+                        <td className="px-4 py-2.5 text-right">
+                          <a
+                            href={`https://solscan.io/account/${r.wallet}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="th text-ink3 transition-colors hover:text-brand"
+                          >
+                            on-chain ↗
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-hairline">
+                      <td className="px-4 py-2.5 th text-ink2">Total owed</td>
+                      <td colSpan={2} />
+                      <td className="px-4 py-2.5 text-right num font-semibold text-ink">
+                        {totalOwedSol.toFixed(3)} ◎
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className="border-t border-hairline px-4 py-3 text-[0.72rem] leading-relaxed text-ink3">
+                Owed is each bot&apos;s outstanding units valued at its latest unit price. A bot is
+                solvent when its wallet&apos;s on-chain balance (the Assets link) covers what it
+                owes — check any row yourself against Solscan. Unit value moves with the bot&apos;s
+                trading, so what you can withdraw rises and falls with performance; that is the
+                deal, stated in the docs.
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="mt-8">

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { clientIp, createSession, hashPassword, rateLimit } from "@/lib/auth";
+import { clientIp, createSession, hashPassword, rateLimit, TERMS_VERSION } from "@/lib/auth";
 import { custodyConfigured, generateWallet } from "@/lib/custody";
 
 export async function POST(req: Request) {
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Too many signups from here — wait a minute" }, { status: 429 });
   }
 
-  let body: { email?: string; username?: string; password?: string };
+  let body: { email?: string; username?: string; password?: string; agreeTerms?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -20,6 +20,12 @@ export async function POST(req: Request) {
   const email = (body.email ?? "").trim().toLowerCase();
   const username = (body.username ?? "").trim();
   const password = body.password ?? "";
+  if (body.agreeTerms !== true) {
+    return NextResponse.json(
+      { error: "Please agree to the Terms and Privacy Policy to create an account" },
+      { status: 400 }
+    );
+  }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
@@ -52,9 +58,18 @@ export async function POST(req: Request) {
   try {
     res = db
       .prepare(
-        "INSERT INTO users (email, username, pass_hash, wallet_address, wallet_key, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO users (email, username, pass_hash, wallet_address, wallet_key, created_at, terms_version, terms_accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .run(email, username, hashPassword(password), wallet.address, wallet.encryptedKey, Date.now());
+      .run(
+        email,
+        username,
+        hashPassword(password),
+        wallet.address,
+        wallet.encryptedKey,
+        Date.now(),
+        TERMS_VERSION,
+        Date.now()
+      );
   } catch (e) {
     // Two signups racing the same email: the SELECT above is not atomic with
     // this INSERT, but the UNIQUE constraints are. The loser gets the same
