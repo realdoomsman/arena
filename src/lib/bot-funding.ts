@@ -87,6 +87,76 @@ export async function injectFees(args: {
   return result;
 }
 
+/**
+ * Automatically sweep the treasury into the bots — the "creator fees flow
+ * straight to the wallets and get claimed on their own" mechanism.
+ *
+ * You point your creator-reward payout stream at the treasury address (pump.fun
+ * creator fees, an exchange payout, a manual top-up — anything that lands SOL
+ * there). This runs on the scheduler's clock, and whenever the treasury holds
+ * more than a reserve, it fans the surplus out equally to every bot as a
+ * fee_injection (raising each unit's value, minting nothing). No human runs a
+ * script; the arena claims and distributes itself.
+ *
+ * Deliberately OPT-IN (ARENA_AUTO_INJECT_ENABLED) and reserve-aware: moving
+ * money is never a side effect of a deploy, and the treasury always keeps
+ * enough SOL to pay its own transaction fees.
+ */
+export function autoInjectEnabled(): boolean {
+  return process.env.ARENA_AUTO_INJECT_ENABLED === "true";
+}
+
+function reserveLamports(): number {
+  const sol = Number(process.env.ARENA_TREASURY_RESERVE_SOL ?? 0.05);
+  return Math.floor((Number.isFinite(sol) && sol >= 0 ? sol : 0.05) * LAMPORTS_PER_SOL);
+}
+
+/** How often the sweep may run, in minutes (default hourly). */
+export function autoInjectIntervalMin(): number {
+  const m = Number(process.env.ARENA_AUTO_INJECT_INTERVAL_MIN ?? 60);
+  return Number.isFinite(m) && m >= 1 ? m : 60;
+}
+
+export async function autoDistributeFromTreasury(): Promise<InjectionResult | null> {
+  if (!autoInjectEnabled()) return null;
+
+  const { getTreasury, treasuryBalanceLamports, recordTreasuryLedger } = await import("./treasury");
+  const treasury = getTreasury();
+  if (!treasury) return null;
+
+  const balance = await treasuryBalanceLamports();
+  const distributable = balance - reserveLamports();
+  const bots = listBots(true);
+  if (bots.length === 0) return null;
+
+  // Nothing worth moving yet: keep the reserve intact and each bot's slice
+  // above the dust threshold, or wait for more to accrue.
+  if (distributable < MIN_INJECTION_LAMPORTS * bots.length) return null;
+
+  const result = await injectFees({
+    totalLamports: distributable,
+    treasuryWallet: treasury.wallet,
+    treasuryEncryptedKey: treasury.encryptedKey,
+  });
+
+  for (const inj of result.injected) {
+    const bot = bots.find((b) => b.slug === inj.slug);
+    recordTreasuryLedger({
+      kind: "fee_injection",
+      botId: bot?.id ?? null,
+      lamports: inj.lamports,
+      signature: inj.signature,
+      detail: "auto-distributed creator fees",
+    });
+  }
+  const total = result.injected.reduce((a, i) => a + i.lamports, 0);
+  console.log(
+    `[fees] auto-distributed ${(total / LAMPORTS_PER_SOL).toFixed(4)} SOL to ${result.injected.length} bot(s)` +
+      (result.failed.length ? `, ${result.failed.length} failed` : "")
+  );
+  return result;
+}
+
 /** Every injection a bot has received — shown on its ledger. */
 export function injectionHistory(botId: number): {
   ts: number;

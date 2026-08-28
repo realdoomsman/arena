@@ -19,6 +19,7 @@ import { flushPosts } from "./bot-social";
 import { reflectIfDue } from "./bot-memory";
 import { isDraining } from "./inflight";
 import { reconcileAll } from "./bot-reconcile";
+import { autoDistributeFromTreasury, autoInjectEnabled, autoInjectIntervalMin } from "./bot-funding";
 
 const TICK_MS = 60_000;
 /** Minute past the hour to re-check the books. Deliberately not :00, where
@@ -33,10 +34,12 @@ const LEASE_TTL_MS = 5 * 60_000;
 const HOLDER = randomUUID();
 
 declare global {
-   
+
   var __aScheduler: ReturnType<typeof setInterval> | undefined;
-   
+
   var __aSchedulerBusy: boolean | undefined;
+
+  var __aLastAutoInject: number | undefined;
 }
 
 /** The hour a wake belongs to. Used to make each bot's hourly run idempotent. */
@@ -193,6 +196,20 @@ export async function tick(now = new Date()): Promise<TickResult> {
 
   // Speaking is best-effort and never blocks trading.
   await flushPosts().catch((e) => console.error("[scheduler] post flush:", e));
+
+  // Sweep creator-fee revenue from the treasury into the bots, on its own
+  // interval. Runs only here, under the single scheduler lease, so it can never
+  // double-distribute. Opt-in and best-effort — a failed sweep never blocks a
+  // wake, and the surplus simply waits in the treasury for the next tick.
+  if (autoInjectEnabled()) {
+    const last = globalThis.__aLastAutoInject ?? 0;
+    if (now.getTime() - last >= autoInjectIntervalMin() * 60_000) {
+      globalThis.__aLastAutoInject = now.getTime();
+      await autoDistributeFromTreasury().catch((e) =>
+        console.error("[scheduler] auto fee distribution:", e)
+      );
+    }
+  }
 
   // Reconcile hourly rather than only at boot. A process that stays up for
   // weeks would otherwise never re-check the books after the one time it

@@ -130,3 +130,30 @@ test("posts are recorded and readable even with X disabled", async () => {
   assert.match(result.reason ?? "", /ARENA_SOCIAL_ENABLED/);
   assert.ok(pendingPosts().length > 0, "and it stays queued rather than being dropped");
 });
+
+// ── Auto creator-fee distribution ────────────────────────────────────────────
+
+const { autoDistributeFromTreasury, autoInjectEnabled, autoInjectIntervalMin } =
+  await import("./bot-funding");
+
+test("auto fee distribution is off unless explicitly enabled", async () => {
+  delete process.env.ARENA_AUTO_INJECT_ENABLED;
+  assert.equal(autoInjectEnabled(), false);
+  // Disabled → no network touched, returns null.
+  assert.equal(await autoDistributeFromTreasury(), null);
+});
+
+test("auto-inject interval parses, with a sane fallback", () => {
+  process.env.ARENA_AUTO_INJECT_INTERVAL_MIN = "30";
+  assert.equal(autoInjectIntervalMin(), 30);
+  process.env.ARENA_AUTO_INJECT_INTERVAL_MIN = "garbage";
+  assert.equal(autoInjectIntervalMin(), 60);
+  delete process.env.ARENA_AUTO_INJECT_INTERVAL_MIN;
+});
+
+test("enabled but with no treasury is a safe no-op, not a throw", async () => {
+  process.env.ARENA_AUTO_INJECT_ENABLED = "true";
+  // This test DB has no treasury row → returns null before any transfer.
+  assert.equal(await autoDistributeFromTreasury(), null);
+  delete process.env.ARENA_AUTO_INJECT_ENABLED;
+});
