@@ -85,9 +85,10 @@ export function register() {
     .catch((e) => console.error("[boot] persona check failed:", e));
 
   // Provision the roster at boot. Idempotent (a second run never touches a
-  // wallet — proven in tests), creates no funds, and means a fresh deploy
-  // comes up with eleven real wallets instead of an empty homepage waiting
-  // for someone to remember a script.
+  // wallet — proven in tests), creates no funds, reconciles the DB to the
+  // roster (a bot removed from the roster and holding no money is pruned), and
+  // means a fresh deploy comes up with the whole roster instead of an empty
+  // homepage waiting for someone to remember a script.
   void import("./src/lib/bot-provision")
     .then((m) => m.provisionBots())
     .then((r) => {

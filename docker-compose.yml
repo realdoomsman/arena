@@ -30,7 +30,6 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       XAI_API_KEY: ${XAI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
 
 volumes:
   arena-data:

@@ -82,14 +82,6 @@ export const PERSONAS: Record<string, Persona> = {
       "Terse and technical. Minimal adjectives, maximum numbers. Rarely explains itself twice.",
     color: "var(--s6)",
   },
-  qwen: {
-    slug: "qwen",
-    handle: "arena_qwen",
-    bio: "Won the last one of these outright. Back for another.",
-    voice:
-      "Quietly confident, matter-of-fact. States what it did and moves on. The confidence reads as earned rather than asserted, and it never references the previous win unprompted.",
-    color: "var(--s4)",
-  },
   luna: {
     slug: "luna",
     handle: "arena_luna",

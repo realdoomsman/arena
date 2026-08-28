@@ -1,4 +1,4 @@
-// The bot roster — eleven real Solana wallets, eight driven by a model and
+// The bot roster — ten real Solana wallets, seven driven by a model and
 // three driven by plain code.
 //
 // THE CONTROLS ARE NOT FILLER. Without Monkey, Index and Diamond, a green
@@ -29,7 +29,6 @@ export type Provider =
   | "google"
   | "xai"
   | "deepseek"
-  | "alibaba"
   | "none";
 
 export type BotSpec = {
@@ -51,7 +50,6 @@ export const PROVIDER_KEY: Record<Provider, string | null> = {
   google: "GOOGLE_API_KEY",
   xai: "XAI_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
-  alibaba: "DASHSCOPE_API_KEY",
   none: null,
 };
 
@@ -68,7 +66,6 @@ export const MODEL_PRICE: Record<string, { in: number; out: number }> = {
   "gemini-3.1-pro": { in: 2, out: 12 },
   "grok-4.6": { in: 2, out: 6 },
   "deepseek-v4-pro": { in: 0.66, out: 1.98 },
-  "qwen3.8-max": { in: 2, out: 6 },
 };
 
 export const BOT_ROSTER: BotSpec[] = [
@@ -128,15 +125,6 @@ export const BOT_ROSTER: BotSpec[] = [
     kind: "model",
     tagline: "Frontier-adjacent at a fiftieth of the price. The cheapest serious model on the board.",
     slot: 25,
-  },
-  {
-    slug: "qwen",
-    name: "Qwen",
-    provider: "alibaba",
-    model: "qwen3.8-max",
-    kind: "model",
-    tagline: "Alibaba's flagship, three weeks old. Trained on a very different internet than the American models.",
-    slot: 30,
   },
   {
     slug: "luna",

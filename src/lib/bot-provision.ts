@@ -109,6 +109,36 @@ export function provisionBots(): ProvisionResult {
     }
   }
 
+  // Reconcile: a bot removed from the roster should leave the arena. Delete it
+  // only when it holds NO money (no outstanding units, no trades) — history and
+  // wakes go with it, which is acceptable for a retired bot but real money is
+  // never silently discarded. A retired bot that still holds money is disabled
+  // instead and logged, so a human settles it before it disappears.
+  const rosterSlugs = new Set(BOT_ROSTER.map((b) => b.slug));
+  const strays = db.prepare("SELECT id, slug FROM bots").all() as { id: number; slug: string }[];
+  for (const s of strays) {
+    if (rosterSlugs.has(s.slug)) continue;
+    const units = (db.prepare("SELECT COALESCE(SUM(units),0) AS u FROM bot_units WHERE bot_id = ?").get(s.id) as { u: number }).u;
+    const trades = (db.prepare("SELECT COUNT(*) AS n FROM bot_trades WHERE bot_id = ?").get(s.id) as { n: number }).n;
+    if (units > 0 || trades > 0) {
+      db.prepare("UPDATE bots SET enabled = 0 WHERE id = ?").run(s.id);
+      console.warn(`[provision] ${s.slug} left the roster but still holds money (units=${units}, trades=${trades}) — disabled, not deleted. Settle it by hand.`);
+      continue;
+    }
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const t of ["bot_notes", "bot_playbook_history", "bot_playbooks", "bot_snapshots", "bot_flows", "bot_holdings", "bot_units", "bot_posts", "bot_wakes", "bot_decisions"]) {
+        db.prepare(`DELETE FROM ${t} WHERE bot_id = ?`).run(s.id);
+      }
+      db.prepare("DELETE FROM bots WHERE id = ?").run(s.id);
+      db.exec("COMMIT");
+      console.log(`[provision] removed retired bot ${s.slug} (held no money)`);
+    } catch (e) {
+      db.exec("ROLLBACK");
+      console.error(`[provision] failed to remove ${s.slug}:`, e);
+    }
+  }
+
   return result;
 }
 

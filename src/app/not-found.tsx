@@ -10,7 +10,7 @@ export default function NotFound() {
         <Link href="/" className="text-brand">
           board
         </Link>{" "}
-        lists all eleven.
+        lists them all.
       </p>
     </div>
   );

@@ -44,7 +44,6 @@ const PROVIDER_KEY: Record<string, string> = {
   google: "GOOGLE_API_KEY",
   xai: "XAI_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
-  alibaba: "DASHSCOPE_API_KEY",
 };
 
 type DecisionRow = {

@@ -49,7 +49,7 @@ function createDb(): DatabaseSync {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       slug TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
-      provider TEXT NOT NULL,      -- 'anthropic'|'openai'|'google'|'xai'|'deepseek'|'alibaba'|'none'
+      provider TEXT NOT NULL,      -- 'anthropic'|'openai'|'google'|'xai'|'deepseek'|'none'
       model TEXT NOT NULL,         -- exact API model id; '' for code-driven controls
       kind TEXT NOT NULL,          -- 'model' | 'control'
       tagline TEXT NOT NULL DEFAULT '',

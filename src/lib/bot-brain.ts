@@ -224,10 +224,6 @@ const OPENAI_COMPATIBLE: Partial<Record<Provider, { baseURL?: string; envKey: st
   openai: { envKey: "OPENAI_API_KEY" },
   xai: { baseURL: "https://api.x.ai/v1", envKey: "XAI_API_KEY" },
   deepseek: { baseURL: "https://api.deepseek.com", envKey: "DEEPSEEK_API_KEY" },
-  alibaba: {
-    baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    envKey: "DASHSCOPE_API_KEY",
-  },
 };
 
 /**
