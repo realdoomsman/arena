@@ -29,6 +29,8 @@ export type MarketSnapshot = {
   ts: number;
   navLamports: number;
   idleLamports: number;
+  /** SOL's own 24h move — the regime every memecoin trades inside. */
+  solChange24h?: number | null;
   positions: {
     mint: string;
     symbol: string;

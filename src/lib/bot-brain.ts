@@ -268,6 +268,11 @@ export function renderSnapshot(s: MarketSnapshot): string {
   lines.push(`## Your wallet`);
   lines.push(`Total value: ${sol(s.navLamports)} SOL`);
   lines.push(`Idle cash: ${sol(s.idleLamports)} SOL`);
+  if (s.solChange24h !== null && s.solChange24h !== undefined) {
+    lines.push(
+      `Market regime: SOL is ${s.solChange24h >= 0 ? "+" : ""}${s.solChange24h.toFixed(1)}% over 24h — memecoins are high-beta on this.`
+    );
+  }
   lines.push("");
 
   lines.push(`## Your positions (${s.positions.length})`);

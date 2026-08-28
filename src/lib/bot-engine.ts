@@ -89,10 +89,16 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
 
   const { notesForSnapshot } = await import("./bot-notes");
 
+  // The tide, not just the fish: memecoins are high-beta on SOL, and a wake
+  // that cannot see SOL falling reads every red token as token-specific.
+  const solChange24h = (await getPrices([SOL_MINT]).catch(() => null))?.[SOL_MINT]
+    ?.priceChange24h ?? null;
+
   return {
     ts: Date.now(),
     navLamports: nav.navLamports,
     idleLamports: nav.solLamports,
+    solChange24h,
     positions,
     eligible,
     recent,
