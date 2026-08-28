@@ -44,7 +44,7 @@ export default function ProofPage() {
   const trades = (db.prepare("SELECT COUNT(*) AS n FROM bot_trades").get() as { n: number }).n;
 
   const sha = process.env.RAILWAY_GIT_COMMIT_SHA ?? null;
-  const repo = "https://github.com/realdoomsman/arena";
+  const repo = "https://github.com/Automatameme/automata";
 
   return (
     <Scroller>

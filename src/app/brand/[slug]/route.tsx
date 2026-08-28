@@ -163,7 +163,7 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", padding: "24px 40px", borderTop: `1px solid ${LINE}`, fontSize: 26 }}>
-            <div style={{ display: "flex", color: INK2 }}>github.com/realdoomsman/arena</div>
+            <div style={{ display: "flex", color: INK2 }}>github.com/Automatameme/automata</div>
             <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
           </div>
         </div>

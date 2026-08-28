@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           Automata stores as little about you as a custodial product can. Every claim below is
           checkable against the{" "}
           <a
-            href="https://github.com/realdoomsman/arena"
+            href="https://github.com/Automatameme/automata"
             target="_blank"
             rel="noreferrer"
             className="text-brand transition-colors hover:brightness-110"

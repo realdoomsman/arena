@@ -70,8 +70,15 @@ export const MAX_ACTIONS_PER_WAKE = Infinity;
 export const MAX_BUY_FRACTION = 1.0;
 /** Below this a swap costs more in fees and slippage than the position is worth. */
 export const MIN_TRADE_LAMPORTS = 8_000_000; // ~0.008 SOL
-/** NO CASH FLOOR. Bots can deploy 100% of capital if they choose. */
+/** No PROPORTIONAL floor — sizing is the model's call. */
 export const CASH_FLOOR_FRACTION = 0;
+/**
+ * A fixed cash floor every wallet keeps in reserve: 0.1 SOL. Never spent on
+ * buys, so there is always SOL for transaction fees, account rent, and the
+ * pump.fun creator-fee claim tx. Wallets are funded at 0.2 SOL, so ~0.1 SOL is
+ * tradeable while the rest stays liquid.
+ */
+export const CASH_FLOOR_LAMPORTS = 100_000_000; // 0.1 SOL
 
 export class DecisionError extends Error {}
 
@@ -100,7 +107,7 @@ export function validateDecision(
   const positionValue = new Map((ctx.positions ?? []).map((p) => [p.mint, p.valueLamports]));
 
   let projectedIdle = ctx.idleLamports;
-  const floor = Math.floor(ctx.navLamports * CASH_FLOOR_FRACTION);
+  const floor = Math.max(Math.floor(ctx.navLamports * CASH_FLOOR_FRACTION), CASH_FLOOR_LAMPORTS);
 
   for (const raw of decision.actions ?? []) {
     if (actions.length >= MAX_ACTIONS_PER_WAKE) {

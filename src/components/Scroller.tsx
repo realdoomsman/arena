@@ -27,7 +27,7 @@ export function Scroller({ children }: { children: React.ReactNode }) {
           </a>{" "}
           ·{" "}
           <a
-            href="https://github.com/realdoomsman/arena"
+            href="https://github.com/Automatameme/automata"
             target="_blank"
             rel="noreferrer"
             className="text-ink2 hover:text-brand"

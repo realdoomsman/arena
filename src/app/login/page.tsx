@@ -46,12 +46,12 @@ export default async function LoginPage({
             <span className="text-ink2">The entire codebase is open source</span> — read exactly
             what happens to your deposit at{" "}
             <a
-              href="https://github.com/realdoomsman/arena"
+              href="https://github.com/Automatameme/automata"
               target="_blank"
               rel="noreferrer"
               className="text-brand transition-colors hover:brightness-110"
             >
-              github.com/realdoomsman/arena ↗
+              github.com/Automatameme/automata ↗
             </a>
             , and audit every claim on-chain from the{" "}
             <a href="/proof" className="text-brand transition-colors hover:brightness-110">
