@@ -264,6 +264,11 @@ Three code-driven bots provide the real baseline:
 
 ## Deployment
 
+Live at **https://arena-production-19f5.up.railway.app** — every push to
+`main` auto-deploys via Railway (Dockerfile build, `/data` volume). See
+[DEPLOY.md](DEPLOY.md) for the full runbook, including the go-live-with-real-money
+checklist.
+
 **Single-process design** — exactly one replica, preventing double-trading.
 
 **Infrastructure**:
