@@ -84,6 +84,17 @@ export function register() {
     .then((m) => m.assertPersonasComplete())
     .catch((e) => console.error("[boot] persona check failed:", e));
 
+  // Provision the roster at boot. Idempotent (a second run never touches a
+  // wallet — proven in tests), creates no funds, and means a fresh deploy
+  // comes up with eleven real wallets instead of an empty homepage waiting
+  // for someone to remember a script.
+  void import("./src/lib/bot-provision")
+    .then((m) => m.provisionBots())
+    .then((r) => {
+      if (r.created.length > 0) console.log(`[boot] provisioned ${r.created.length} bot wallet(s)`);
+    })
+    .catch((e) => console.error("[boot] provisioning failed:", e));
+
   // Reconcile at boot. A restart is exactly when the ledger is most likely to
   // have been left behind by a kill mid-trade, so it is the right moment to
   // ask the chain whether the books still agree.
