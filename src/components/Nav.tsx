@@ -6,14 +6,15 @@ export async function Nav() {
   const user = await getUser();
   return (
     <nav className="border-b border-hairline-2 bg-page-deep/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-4 px-4 py-2.5">
+      <div className="mx-auto flex max-w-[86rem] items-center gap-4 px-4 py-2.5">
         <Link
           href="/"
-          className="font-mono text-[0.8rem] font-semibold tracking-tight transition-colors hover:text-brand-light"
+          className="shrink-0 font-mono text-[0.8rem] font-semibold tracking-tight transition-colors hover:text-brand-light"
         >
           <span className="text-brand">◆</span> ARENA
         </Link>
-        <div className="flex items-center gap-5 font-mono text-[0.66rem] uppercase tracking-[0.1em] text-ink3">
+        {/* Scrolls rather than wraps on a phone — one clean line always. */}
+        <div className="flex flex-1 items-center justify-end gap-4 overflow-x-auto whitespace-nowrap font-mono text-[0.66rem] uppercase tracking-[0.1em] text-ink3 sm:gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_a]:shrink-0 [&_button]:shrink-0">
           <Link href="/market" className="transition-colors hover:text-ink">
             the list
           </Link>

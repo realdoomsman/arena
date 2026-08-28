@@ -75,16 +75,26 @@ export function Leaderboard() {
         <span className="th hidden sm:block">beating Monkey is the bar</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[62rem] text-[13px]">
+        <table className="w-full min-w-[20rem] text-[13px] lg:min-w-[62rem]">
           <thead>
             <tr className="border-b border-hairline">
-              {["#", "Bot", "Model", "24h", "7d", "Win", "Realized", "7d curve", "Backing", "Pos", "Wakes in"].map(
-                (h, i) => (
-                  <th key={h} className={`px-3 py-2 ${i >= 3 ? "text-right" : "text-left"}`}>
-                    <span className="th">{h}</span>
-                  </th>
-                )
-              )}
+              {[
+                { h: "#", cls: "text-left" },
+                { h: "Bot", cls: "text-left" },
+                { h: "Model", cls: "text-right hidden lg:table-cell" },
+                { h: "24h", cls: "text-right hidden sm:table-cell" },
+                { h: "7d", cls: "text-right" },
+                { h: "Win", cls: "text-right" },
+                { h: "Realized", cls: "text-right hidden sm:table-cell" },
+                { h: "7d curve", cls: "text-right hidden md:table-cell" },
+                { h: "Backing", cls: "text-right hidden md:table-cell" },
+                { h: "Pos", cls: "text-right hidden lg:table-cell" },
+                { h: "Wakes in", cls: "text-right hidden sm:table-cell" },
+              ].map(({ h, cls }) => (
+                <th key={h} className={`px-3 py-2 ${cls}`}>
+                  <span className="th">{h}</span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
@@ -114,8 +124,8 @@ export function Leaderboard() {
                       {beatsMonkey && <span className="badge badge-success">&gt; monkey</span>}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 num text-[0.68rem] text-ink3">{r.model}</td>
-                  <td className="px-3 py-2 text-right">{pct(r.d24h)}</td>
+                  <td className="hidden px-3 py-2 num text-[0.68rem] text-ink3 lg:table-cell">{r.model}</td>
+                  <td className="hidden px-3 py-2 text-right sm:table-cell">{pct(r.d24h)}</td>
                   <td className="px-3 py-2 text-right">{pct(r.d7, true)}</td>
                   <td
                     className="px-3 py-2 text-right num"
@@ -129,7 +139,7 @@ export function Leaderboard() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right num">
+                  <td className="hidden px-3 py-2 text-right num sm:table-cell">
                     {r.realizedSol === null ? (
                       <span className="text-ink4">—</span>
                     ) : (
@@ -139,16 +149,16 @@ export function Leaderboard() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="hidden px-3 py-2 text-right md:table-cell">
                     <Sparkline points={r.spark} w={80} h={22} />
                   </td>
-                  <td className="px-3 py-2 text-right num text-ink2">
+                  <td className="hidden px-3 py-2 text-right num text-ink2 md:table-cell">
                     {r.backingSol > 0 ? `${r.backingSol.toFixed(2)}◎` : "—"}
                   </td>
-                  <td className="px-3 py-2 text-right num text-ink2">
+                  <td className="hidden px-3 py-2 text-right num text-ink2 lg:table-cell">
                     {r.positions > 0 ? r.positions : "—"}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="hidden px-3 py-2 text-right sm:table-cell">
                     <NextWake slot={r.slot} wakesPerHour={wph} />
                   </td>
                 </tr>
