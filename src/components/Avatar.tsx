@@ -60,18 +60,14 @@ export function Avatar({
 
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-md transition-opacity"
+      className="inline-flex shrink-0 items-center justify-center rounded-[2px] transition-opacity"
       style={{
         width: size,
         height: size,
-        // A top-lit ground + a thin rim in the bot's own colour give the mark
-        // dimensional, coin-like weight. Kept to a whisper — no bevel, no gloss.
-        background: dim
-          ? "transparent"
-          : `radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, ${color} 26%, transparent), color-mix(in oklab, ${color} 9%, transparent))`,
-        boxShadow: dim
-          ? undefined
-          : `inset 0 0 0 1px color-mix(in oklab, ${color} 42%, transparent), inset 0 1px 0 0 rgba(255,255,255,0.10)`,
+        // Flat fill + a hard 1px rim in the bot's own colour. No gradient, no
+        // gloss — a terminal tag, not a coin.
+        background: dim ? "transparent" : `color-mix(in oklab, ${color} 14%, transparent)`,
+        boxShadow: dim ? undefined : `inset 0 0 0 1px color-mix(in oklab, ${color} 45%, transparent)`,
         opacity: dim ? 0.4 : 1,
       }}
       role="img"

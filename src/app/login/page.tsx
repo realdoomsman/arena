@@ -24,7 +24,7 @@ export default async function LoginPage({
           before you put anything in.
         </p>
         {error === "google" && (
-          <p className="mt-4 rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 text-sm text-ink2">
+          <p className="mt-4 rounded-[2px] border border-warn/30 bg-warn/5 px-3 py-2 text-sm text-ink2">
             Google sign-in didn&apos;t complete. Try again, or use email.
           </p>
         )}

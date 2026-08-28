@@ -146,7 +146,7 @@ export function Leaderboard() {
                   key={r.slug}
                   className={`table-row-hover ${
                     isLeader
-                      ? "bg-gradient-to-r from-brand/[0.07] to-transparent"
+                      ? "bg-brand/[0.06]"
                       : isMonkey
                         ? "bg-gold/[0.05]"
                         : ""

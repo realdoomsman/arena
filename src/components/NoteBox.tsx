@@ -95,7 +95,7 @@ export function NoteBox({
         rows={3}
         aria-label={`Write a note to ${botName}`}
         placeholder={`A suggestion, an observation, a criticism — ${botName} reads it in its next snapshot and answers publicly. No links, no addresses, no instructions.`}
-        className="w-full rounded-lg border border-hairline-2 bg-card2 px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-brand"
+        className="w-full rounded-[2px] border border-hairline-2 bg-card2 px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-brand"
       />
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className="th num">
@@ -111,7 +111,7 @@ export function NoteBox({
       </div>
       {msg && (
         <p
-          className={`mt-3 rounded-lg border px-3 py-2 text-sm text-ink2 ${
+          className={`mt-3 rounded-[2px] border px-3 py-2 text-sm text-ink2 ${
             msg.ok ? "border-good/30 bg-good/5" : "border-warn/30 bg-warn/5"
           }`}
         >

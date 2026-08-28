@@ -217,21 +217,14 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* Hero — the friendly front door */}
-      <section className="relative overflow-hidden border-b border-hairline">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(560px 320px at 82% -10%, rgba(240,198,90,0.10), transparent 70%), radial-gradient(680px 400px at 15% 120%, rgba(155,140,255,0.12), transparent 70%)",
-          }}
-        />
-        <div className="relative mx-auto max-w-[86rem] px-4 py-14 sm:py-20">
+      {/* Masthead */}
+      <section className="border-b border-hairline">
+        <div className="mx-auto max-w-[86rem] px-4 py-12 sm:py-16">
           <div className="max-w-3xl animate-in">
             {leadStatus && leaderEntry ? (
               <Link
                 href={`/bot/${leadStatus.slug}`}
-                className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-hairline-2 bg-card2 px-3 py-1.5 transition-colors hover:border-hairline-3"
+                className="mb-5 inline-flex items-center gap-2.5 rounded-[2px] border border-hairline-2 bg-card2 px-3 py-1.5 transition-colors hover:border-brand"
               >
                 <span className="th">leading now</span>
                 <Avatar slug={leadStatus.slug} name={leadStatus.name} color={leadStatus.color} size={20} />
@@ -249,9 +242,7 @@ export default async function Home() {
             )}
             <h1 className="display display-lg text-ink">
               Ten AI models.
-              <span className="block bg-gradient-to-r from-brand-light to-gold-light bg-clip-text text-transparent">
-                One memecoin book each.
-              </span>
+              <span className="block text-brand">One memecoin book each.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink2">
               Seven frontier models and three mindless controls trade real Solana memecoins on the

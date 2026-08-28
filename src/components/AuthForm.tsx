@@ -109,7 +109,7 @@ export function AuthForm({ googleEnabled = false }: { googleEnabled?: boolean })
       )}
 
       {error && (
-        <p role="alert" className="rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
+        <p role="alert" className="rounded-[2px] border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
       )}
 
       <button
@@ -156,7 +156,7 @@ function Field({
         value={value}
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-hairline-2 bg-card px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand"
+        className="rounded-[2px] border border-hairline-2 bg-card px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand"
       />
     </label>
   );

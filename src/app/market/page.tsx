@@ -75,7 +75,7 @@ export default async function MarketPage() {
       </details>
 
       {error && (
-        <p className="mb-4 rounded-lg border border-bad/30 bg-bad/5 px-4 py-3 font-mono text-[0.7rem] text-ink2">
+        <p className="mb-4 rounded-[2px] border border-bad/30 bg-bad/5 px-4 py-3 font-mono text-[0.7rem] text-ink2">
           Could not build the list: {error}
         </p>
       )}

@@ -267,7 +267,7 @@ function Callout({
 }) {
   return (
     <div
-      className={`my-8 rounded-xl border p-6 text-sm leading-relaxed text-ink2 ${
+      className={`my-8 rounded-[2px] border p-6 text-sm leading-relaxed text-ink2 ${
         tone === "warn" ? "border-warn/30 bg-warn/5" : "border-brand/30 bg-brand/5"
       }`}
     >

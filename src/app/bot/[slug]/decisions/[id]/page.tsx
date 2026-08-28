@@ -195,7 +195,7 @@ export default async function DecisionPage({
 
         {/* ── Error State ─────────────────────────────────────────────────── */}
         {row.error ? (
-          <div className="mt-6 rounded-lg border-l-4 border-bad bg-bad/5 p-5">
+          <div className="mt-6 rounded-[2px] border-l-4 border-bad bg-bad/5 p-5">
             <h2 className="font-display text-lg font-semibold text-bad mb-2">Failed to execute</h2>
             <p className="font-mono text-sm text-bad">{row.error}</p>
             <p className="mt-3 text-xs text-ink3 leading-relaxed">
@@ -208,7 +208,7 @@ export default async function DecisionPage({
 
         {/* ── What it looked up ─────────────────────────────────────────────── */}
         {lookups.length > 0 && (
-          <section className="mt-6 rounded-xl border border-hairline bg-card overflow-hidden">
+          <section className="mt-6 card">
             <div className="border-b border-hairline bg-card2/50 px-5 py-3">
               <h2 className="font-display text-lg font-semibold">What it looked up</h2>
               <p className="font-mono text-[0.64rem] text-ink3 mt-1">
@@ -229,7 +229,7 @@ export default async function DecisionPage({
         )}
 
         {/* ── What It Said (Rationale) ─────────────────────────────────────── */}
-        <section className="mt-8 rounded-xl border border-hairline bg-card overflow-hidden">
+        <section className="mt-8 card">
           <div className="border-b border-hairline bg-card2/50 px-5 py-3">
             <h2 className="font-display text-lg font-semibold">What it said</h2>
             <p className="font-mono text-[0.64rem] text-ink3 mt-1">
@@ -244,7 +244,7 @@ export default async function DecisionPage({
         </section>
 
         {/* ── What It Did (Actions) ─────────────────────────────────────────── */}
-        <section className="mt-6 rounded-xl border border-hairline bg-card overflow-hidden">
+        <section className="mt-6 card">
           <div className="border-b border-hairline bg-card2/50 px-5 py-3">
             <h2 className="font-display text-lg font-semibold">What it did</h2>
             <p className="font-mono text-[0.64rem] text-ink3 mt-1">
@@ -318,7 +318,7 @@ export default async function DecisionPage({
                     href={`https://solscan.io/tx/${t.signature}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-lg border border-hairline bg-card px-3 py-2 font-mono text-[0.7rem] text-ink3 hover:border-brand/50 hover:text-brand transition-colors"
+                    className="rounded-[2px] border border-hairline bg-card px-3 py-2 font-mono text-[0.7rem] text-ink3 hover:border-brand/50 hover:text-brand transition-colors"
                   >
                     View on Solscan ↗
                   </a>
@@ -330,7 +330,7 @@ export default async function DecisionPage({
 
         {/* ── What the Executor Refused ─────────────────────────────────────── */}
         {refused.length > 0 && (
-          <section className="mt-6 rounded-xl border border-warn/30 bg-warn/5 overflow-hidden">
+          <section className="card mt-6 border-warn/30 bg-warn/5">
             <div className="border-b border-warn/20 bg-warn/10 px-5 py-3">
               <h2 className="font-display text-lg font-semibold text-warn">What the executor refused</h2>
               <p className="font-mono text-[0.64rem] text-warn/80 mt-1">
@@ -354,7 +354,7 @@ export default async function DecisionPage({
 
         {/* ── What It Saw (Snapshot) ─────────────────────────────────────────── */}
         {snap && (
-          <section className="mt-6 rounded-xl border border-hairline bg-card overflow-hidden">
+          <section className="mt-6 card">
             <div className="border-b border-hairline bg-card2/50 px-5 py-3">
               <h2 className="font-display text-lg font-semibold">What it saw</h2>
               <p className="font-mono text-[0.64rem] text-ink3 mt-1">
@@ -366,13 +366,13 @@ export default async function DecisionPage({
               <div>
                 <h3 className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-3">Wallet State</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg bg-card2/50 p-4">
+                  <div className="rounded-[2px] bg-card2/50 p-4">
                     <div className="font-mono text-[0.64rem] text-ink3">Total Value</div>
                     <div className="font-mono text-lg font-semibold text-ink">
                       {(snap.navLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
                     </div>
                   </div>
-                  <div className="rounded-lg bg-card2/50 p-4">
+                  <div className="rounded-[2px] bg-card2/50 p-4">
                     <div className="font-mono text-[0.64rem] text-ink3">Idle Cash</div>
                     <div className="font-mono text-lg font-semibold text-ink">
                       {(snap.idleLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
@@ -387,7 +387,7 @@ export default async function DecisionPage({
                   <h3 className="font-mono text-[0.7rem] uppercase tracking-wider text-ink3 mb-3">
                     Positions ({snap.positions.length})
                   </h3>
-                  <div className="rounded-lg border border-hairline overflow-hidden">
+                  <div className="rounded-[2px] border border-hairline overflow-hidden">
                     <table className="w-full font-mono text-sm">
                       <thead className="bg-card2/50">
                         <tr className="text-left text-[0.64rem] text-ink3">
@@ -439,11 +439,11 @@ export default async function DecisionPage({
                 </div>
                 
                 {snap.eligible.length === 0 ? (
-                  <div className="rounded-lg bg-card2/50 p-8 text-center text-sm text-ink3">
+                  <div className="rounded-[2px] bg-card2/50 p-8 text-center text-sm text-ink3">
                     No tokens available
                   </div>
                 ) : (
-                  <div className="max-h-96 overflow-y-auto rounded-lg border border-hairline">
+                  <div className="max-h-96 overflow-y-auto rounded-[2px] border border-hairline">
                     <table className="w-full font-mono text-xs">
                       <thead className="sticky top-0 bg-card border-b border-hairline">
                         <tr className="text-left">
@@ -515,7 +515,7 @@ export default async function DecisionPage({
                   </h3>
                   <ul className="space-y-2">
                     {snap.lessons.map((lesson, i) => (
-                      <li key={i} className="rounded-lg bg-gold/5 px-4 py-3 text-sm text-ink2">
+                      <li key={i} className="rounded-[2px] bg-gold/5 px-4 py-3 text-sm text-ink2">
                         {lesson}
                       </li>
                     ))}
@@ -531,7 +531,7 @@ export default async function DecisionPage({
                   </h3>
                   <ul className="space-y-2">
                     {snap.recent.map((r, i) => (
-                      <li key={i} className="rounded-lg bg-card2/50 px-4 py-3">
+                      <li key={i} className="rounded-[2px] bg-card2/50 px-4 py-3">
                         <div className="font-mono text-[0.64rem] text-ink3 mb-1">
                           {new Date(r.ts).toISOString().slice(5, 16).replace("T", " ")}
                         </div>

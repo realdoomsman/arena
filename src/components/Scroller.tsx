@@ -13,10 +13,7 @@ export function Scroller({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-hairline-2 py-5">
         <div className="mx-auto max-w-[86rem] px-5">
           <Link href="/" className="mb-2 inline-flex items-center gap-1.5 font-mono text-[0.8rem] font-semibold tracking-tight text-ink2 transition-colors hover:text-ink">
-            <span className="text-brand" style={{ filter: "drop-shadow(0 0 6px var(--brand-glow))" }}>
-              ◆
-            </span>
-            automata.meme
+            <span className="text-brand">◆</span> automata.meme
           </Link>
         </div>
         <div className="mx-auto max-w-[86rem] px-5 font-mono text-[0.62rem] leading-relaxed text-ink3">

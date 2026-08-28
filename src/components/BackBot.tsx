@@ -100,7 +100,7 @@ export function BackBot({
             step="0.01"
             value={sol}
             onChange={(e) => setSol(e.target.value)}
-            className="w-32 rounded-lg border border-hairline-2 bg-card2 px-3 py-2 font-mono text-sm tabular-nums outline-none transition-colors focus:border-brand"
+            className="w-32 rounded-[2px] border border-hairline-2 bg-card2 px-3 py-2 font-mono text-sm tabular-nums outline-none transition-colors focus:border-brand"
           />
           <div className="mt-1 flex gap-1.5">
             {[0.1, 0.5, 1].map((v) => (
@@ -147,10 +147,10 @@ export function BackBot({
       </div>
 
       {error && (
-        <p className="mt-3 rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
+        <p className="mt-3 rounded-[2px] border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
       )}
       {done && (
-        <p className="mt-3 rounded-lg border border-good/30 bg-good/5 px-3 py-2 text-sm text-ink2">{done}</p>
+        <p className="mt-3 rounded-[2px] border border-good/30 bg-good/5 px-3 py-2 text-sm text-ink2">{done}</p>
       )}
 
       <p className="mt-3 max-w-[62ch] text-xs leading-relaxed text-ink3">

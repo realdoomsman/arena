@@ -46,7 +46,7 @@ export function WithdrawSol({ balance }: { balance: number }) {
           value={dest}
           onChange={(e) => setDest(e.target.value)}
           placeholder="Solana address"
-          className="min-w-[16rem] rounded-lg border border-hairline-2 bg-card2 px-2.5 py-1.5 font-mono text-xs outline-none transition-colors focus:border-brand"
+          className="min-w-[16rem] rounded-[2px] border border-hairline-2 bg-card2 px-2.5 py-1.5 font-mono text-xs outline-none transition-colors focus:border-brand"
         />
       </label>
       <label className="flex flex-col gap-1">
@@ -58,7 +58,7 @@ export function WithdrawSol({ balance }: { balance: number }) {
           max={balance}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-28 rounded-lg border border-hairline-2 bg-card2 px-2.5 py-1.5 font-mono text-xs tabular-nums outline-none transition-colors focus:border-brand"
+          className="w-28 rounded-[2px] border border-hairline-2 bg-card2 px-2.5 py-1.5 font-mono text-xs tabular-nums outline-none transition-colors focus:border-brand"
         />
       </label>
       <button

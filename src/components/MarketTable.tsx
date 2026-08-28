@@ -90,13 +90,13 @@ export function MarketTable({
 
   return (
     <div className="card card-glass card-elevated overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-hairline bg-card/50 px-4 py-3 backdrop-blur-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-hairline bg-card2 px-4 py-3">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           aria-label="Search tokens by symbol, name, or exact mint address"
           placeholder={`Search ${list.length} tokens — symbol, name, or exact mint`}
-          className="min-w-[16rem] flex-1 rounded-lg border border-hairline-2 bg-card2 px-3 py-2 font-mono text-xs text-ink outline-none transition-colors focus:border-brand"
+          className="min-w-[16rem] flex-1 rounded-[2px] border border-hairline-2 bg-card2 px-3 py-2 font-mono text-xs text-ink outline-none transition-colors focus:border-brand"
         />
         <label className="flex cursor-pointer items-center gap-2 th">
           <input

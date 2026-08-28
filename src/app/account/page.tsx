@@ -59,7 +59,7 @@ export default async function AccountPage() {
 
       <section className="mt-8">
         <div className="card card-glass card-elevated overflow-hidden">
-          <div className="border-b border-hairline bg-card/50 px-5 py-3 backdrop-blur-sm">
+          <div className="border-b border-hairline bg-card2 px-5 py-3">
             <h2 className="display-sm text-lg">Your wallet</h2>
           </div>
           <div className="px-5 py-5">
@@ -89,7 +89,7 @@ export default async function AccountPage() {
 
       <section className="mt-8">
         <div className="card card-glass card-elevated overflow-hidden">
-          <div className="border-b border-hairline bg-card/50 px-5 py-3 backdrop-blur-sm">
+          <div className="border-b border-hairline bg-card2 px-5 py-3">
             <h2 className="display-sm text-lg">Bots you back</h2>
           </div>
         {valued.length === 0 ? (

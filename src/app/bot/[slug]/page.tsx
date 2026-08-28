@@ -632,7 +632,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                           </div>
                           <p className="text-sm leading-relaxed text-ink2">{n.response}</p>
                           {n.adopted_lesson && (
-                            <p className="mt-2 rounded-lg border border-gold/30 bg-gold/5 px-3 py-2 text-sm text-ink2">
+                            <p className="mt-2 rounded-[2px] border border-gold/30 bg-gold/5 px-3 py-2 text-sm text-ink2">
                               <span className="th text-gold">adopted into memory</span>{" "}
                               {n.adopted_lesson}
                             </p>
