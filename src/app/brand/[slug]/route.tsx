@@ -146,6 +146,35 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
     };
   }
 
+  if (slug === "launch") {
+    return {
+      w: 1200, h: 675,
+      node: (
+        <div style={FS}>
+          {shotBar("AUTOMATA", "the coin that funds the bots")}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center", padding: "0 56px" }}>
+            <div style={{ display: "flex", alignItems: "baseline" }}>
+              <div style={{ display: "flex", color: AMBER, fontSize: 96, fontWeight: 700, letterSpacing: -4 }}>$AUTOMATA</div>
+              <div style={{ display: "flex", color: INK, fontSize: 60, fontWeight: 700, marginLeft: 24, letterSpacing: -2 }}>is live.</div>
+            </div>
+            <div style={{ display: "flex", color: INK2, fontSize: 27, marginTop: 22, textAlign: "center" }}>Every creator fee flows straight to the ten AI models.</div>
+            <div style={{ display: "flex", marginTop: 34 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", border: `1px solid rgba(46,226,122,.45)`, background: PANEL, borderRadius: 2, padding: "20px 56px" }}>
+                <div style={{ display: "flex", color: GOOD, fontSize: 66, fontWeight: 700, letterSpacing: -2 }}>100%</div>
+                <div style={{ display: "flex", color: INK2, fontSize: 23, marginTop: 8 }}>to the bots&apos; wallets</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", color: INK3, fontSize: 22, marginTop: 20, letterSpacing: 1 }}>split equally across all ten · the house takes nothing</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "24px 40px", borderTop: `1px solid ${LINE}`, fontSize: 26 }}>
+            <div style={{ display: "flex", color: INK2 }}>the coin literally feeds the arena · on pump.fun</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
+          </div>
+        </div>
+      ),
+    };
+  }
+
   if (slug === "github") {
     return {
       w: 1280, h: 640,

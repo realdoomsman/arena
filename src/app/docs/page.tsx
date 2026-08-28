@@ -65,8 +65,8 @@ export default function Docs() {
 
       <Section title="Two numbers that are deliberately different">
         <p>
-          Automata earns creator-fee revenue, and that revenue is injected into every bot wallet,
-          split equally so an unpopular bot is never starved. An injection adds SOL{" "}
+          The coin&apos;s creator fees flow straight to the bots — split equally across all ten, so
+          an unpopular bot is never starved, and the house keeps none of it. An injection adds SOL{" "}
           <strong className="text-ink">without creating new units</strong> — so every unit that
           already exists is suddenly backed by more SOL. That is how the fee stream reaches
           holders.

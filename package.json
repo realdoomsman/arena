@@ -12,7 +12,11 @@
     "provision": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/provision.ts",
     "seed": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/seed.ts",
     "wake": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/wake.ts",
-    "backup": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/backup.ts"
+    "backup": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/backup.ts",
+    "claim-now": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/claim-now.ts",
+    "reconcile-adopt": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/reconcile-adopt.ts",
+    "export-keys": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/export-keys.ts",
+    "sweep": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/sweep.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

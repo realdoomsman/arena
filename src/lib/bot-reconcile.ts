@@ -98,10 +98,27 @@ export async function reconcileBot(
     known.add(r.signature);
   }
 
+  // The ledger has a beginning. A bot funded by a direct transfer and then
+  // adopted into the ledger (scripts/reconcile-adopt) has real on-chain history
+  // that predates its first flow — that history is not "missing from the
+  // ledger", there simply was no ledger yet when it happened. So reconciliation
+  // starts at the bot's genesis (its earliest recorded flow): anything at or
+  // after it is checked; anything strictly before it is pre-ledger and not a
+  // divergence. A bot with no flows has no genesis, so nothing is excluded — the
+  // honest default that still catches a wallet with activity but no ledger.
+  const genesisRow = db
+    .prepare("SELECT MIN(ts) AS ts FROM bot_flows WHERE bot_id = ?")
+    .get(bot.id) as { ts: number | null };
+  const genesisSec = genesisRow.ts != null ? genesisRow.ts / 1000 : null;
+
   const divergences: Divergence[] = [];
   for (const s of sigs) {
     if (s.err) continue; // failed on-chain: moved nothing, correctly absent
     if (known.has(s.signature)) continue;
+    // Pre-ledger chain history (e.g. the direct funding transfer) is not a
+    // divergence. blockTime is unix seconds; a null blockTime is kept (flagged)
+    // rather than assumed old.
+    if (genesisSec != null && s.blockTime != null && s.blockTime < genesisSec) continue;
     divergences.push({
       botSlug: bot.slug,
       signature: s.signature,
