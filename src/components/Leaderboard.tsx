@@ -3,10 +3,11 @@ import { getDb } from "@/lib/db";
 import { listBots, getBotReturn, totalUnits } from "@/lib/bot-nav";
 import { personaFor } from "@/lib/bot-persona";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
-import { minutesToNextWake } from "@/lib/bots";
-import { sparkline } from "@/lib/bot-stats";
+import { wakesPerHour } from "@/lib/bots";
+import { sparkline, botTradeStats } from "@/lib/bot-stats";
 import { Avatar } from "@/components/Avatar";
 import { Sparkline } from "@/components/Sparkline";
+import { NextWake } from "@/components/NextWake";
 
 const DAY = 24 * 3600_000;
 
@@ -23,8 +24,7 @@ export function Leaderboard() {
   const db = getDb();
   const bots = listBots();
 
-  // eslint-disable-next-line react-hooks/purity
-  const nowMinute = new Date().getUTCMinutes();
+  const wph = wakesPerHour();
   const rows = bots.map((b) => {
     const persona = personaFor(b.slug);
     const positions = (
@@ -32,18 +32,22 @@ export function Leaderboard() {
         n: number;
       }
     ).n;
+    const stats = botTradeStats(b.id);
     return {
       slug: b.slug,
       name: b.name,
       kind: b.kind,
+      slot: b.slot,
       color: persona.color,
       d7: getBotReturn(b.id, 7 * DAY),
       d24h: getBotReturn(b.id, DAY),
-      d30: getBotReturn(b.id, 30 * DAY),
       spark: sparkline(b.id),
+      winRate: stats.winRate,
+      wins: stats.wins,
+      losses: stats.losses,
+      realizedSol: stats.closedTrades > 0 ? stats.realizedLamports / LAMPORTS_PER_SOL : null,
       backingSol: totalUnits(b.id) / LAMPORTS_PER_SOL,
       positions,
-      nextWakeMin: minutesToNextWake(b.slot, nowMinute),
     };
   });
 
@@ -64,23 +68,22 @@ export function Leaderboard() {
     );
 
   return (
-    <div className="card card-glass card-elevated overflow-hidden">
-      <div className="flex items-center justify-between border-b border-hairline bg-card/50 px-5 py-4 backdrop-blur-sm">
-        <h2 className="display-sm">Leaderboard</h2>
-        <p className="th hidden sm:block">7-day trading return · beating Monkey is the bar</p>
+    <div className="card">
+      <div className="flex items-center justify-between border-b border-hairline bg-card2 px-4 py-2.5">
+        <span className="th text-ink2">Leaderboard — 7-day trading return</span>
+        <span className="th hidden sm:block">beating Monkey is the bar</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-sm">
+        <table className="w-full min-w-[62rem] text-[13px]">
           <thead>
             <tr className="border-b border-hairline">
-              {["#", "Bot", "24h", "7d", "30d", "7d curve", "Backing", "Pos", "Wakes"].map((h, i) => (
-                <th
-                  key={h}
-                  className={`px-4 py-3 ${i >= 2 ? "text-right" : "text-left"}`}
-                >
-                  <span className="th">{h}</span>
-                </th>
-              ))}
+              {["#", "Bot", "24h", "7d", "Win", "Realized", "7d curve", "Backing", "Pos", "Wakes in"].map(
+                (h, i) => (
+                  <th key={h} className={`px-3 py-2 ${i >= 2 ? "text-right" : "text-left"}`}>
+                    <span className="th">{h}</span>
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
@@ -93,37 +96,58 @@ export function Leaderboard() {
                   key={r.slug}
                   className={`table-row-hover ${isMonkey ? "bg-gold/5" : ""}`}
                 >
-                  <td className="px-4 py-3 num text-ink3">
+                  <td className="px-3 py-2 num text-ink3">
                     {r.d7 === null ? "·" : i + 1}
                   </td>
-                  <td className="px-4 py-3">
-                    <Link href={`/bot/${r.slug}`} className="group flex items-center gap-3">
-                      <Avatar slug={r.slug} name={r.name} color={r.color} size={28} />
+                  <td className="px-3 py-2">
+                    <Link href={`/bot/${r.slug}`} className="group flex items-center gap-2.5">
+                      <Avatar slug={r.slug} name={r.name} color={r.color} size={24} />
                       <span className="font-semibold text-ink group-hover:text-brand transition-colors">
                         {r.name}
                       </span>
                       {r.kind === "control" && (
                         <span className={`badge ${isMonkey ? "badge-warning" : ""}`}>
-                          {isMonkey ? "the bar" : "control"}
+                          {isMonkey ? "the bar" : "ctl"}
                         </span>
                       )}
-                      {beatsMonkey && <span className="badge badge-success">beats monkey</span>}
+                      {beatsMonkey && <span className="badge badge-success">&gt; monkey</span>}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-right">{pct(r.d24h)}</td>
-                  <td className="px-4 py-3 text-right">{pct(r.d7, true)}</td>
-                  <td className="px-4 py-3 text-right">{pct(r.d30)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Sparkline points={r.spark} />
+                  <td className="px-3 py-2 text-right">{pct(r.d24h)}</td>
+                  <td className="px-3 py-2 text-right">{pct(r.d7, true)}</td>
+                  <td
+                    className="px-3 py-2 text-right num"
+                    title={r.winRate === null ? undefined : `${r.wins}W · ${r.losses}L closed`}
+                  >
+                    {r.winRate === null ? (
+                      <span className="text-ink4">—</span>
+                    ) : (
+                      <span className={r.winRate >= 0.5 ? "text-good" : "text-bad"}>
+                        {(r.winRate * 100).toFixed(0)}%
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-right num text-ink2">
-                    {r.backingSol > 0 ? `${r.backingSol.toFixed(2)} ◎` : "—"}
+                  <td className="px-3 py-2 text-right num">
+                    {r.realizedSol === null ? (
+                      <span className="text-ink4">—</span>
+                    ) : (
+                      <span className={r.realizedSol >= 0 ? "text-good" : "text-bad"}>
+                        {r.realizedSol >= 0 ? "+" : ""}
+                        {r.realizedSol.toFixed(2)}◎
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-right num text-ink2">
+                  <td className="px-3 py-2 text-right">
+                    <Sparkline points={r.spark} w={80} h={22} />
+                  </td>
+                  <td className="px-3 py-2 text-right num text-ink2">
+                    {r.backingSol > 0 ? `${r.backingSol.toFixed(2)}◎` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right num text-ink2">
                     {r.positions > 0 ? r.positions : "—"}
                   </td>
-                  <td className="px-4 py-3 text-right num text-ink3">
-                    {r.nextWakeMin === 0 ? "now" : `${r.nextWakeMin}m`}
+                  <td className="px-3 py-2 text-right">
+                    <NextWake slot={r.slot} wakesPerHour={wph} />
                   </td>
                 </tr>
               );
@@ -132,7 +156,7 @@ export function Leaderboard() {
         </table>
       </div>
       {ranked.length === 0 && (
-        <p className="border-t border-hairline px-5 py-4 text-sm text-ink3">
+        <p className="border-t border-hairline px-4 py-3 text-[13px] text-ink3">
           No bot has enough history to rank yet. The table fills in as soon as wallets are
           funded and the first week of snapshots exists — nothing here is ever simulated.
         </p>

@@ -6,7 +6,8 @@ import { personaFor } from "@/lib/bot-persona";
 import { getFeed } from "@/lib/bot-social";
 import { getLessons } from "@/lib/bot-memory";
 import { injectionHistory } from "@/lib/bot-funding";
-import { MODEL_PRICE } from "@/lib/bots";
+import { MODEL_PRICE, wakesPerHour } from "@/lib/bots";
+import { NextWake } from "@/components/NextWake";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { getUser } from "@/lib/auth";
 import { mintSymbol, SOL_MINT } from "@/lib/wallets";
@@ -59,6 +60,7 @@ type DecisionRow = {
 type TradeRow = {
   id: number;
   ts: number;
+  mint: string;
   symbol: string;
   side: string;
   lamports: number;
@@ -77,10 +79,10 @@ function Section({
   className?: string;
 }) {
   return (
-    <section className={`mt-10 ${className}`}>
-      <div className="flex items-baseline justify-between gap-4 mb-5">
-        <h2 className="display-sm">{title}</h2>
-        {note && <p className="th">{note}</p>}
+    <section className={`mt-8 ${className}`}>
+      <div className="section-label mb-3">
+        <span>{title}</span>
+        {note && <span className="text-ink4 normal-case tracking-normal">{note}</span>}
       </div>
       {children}
     </section>
@@ -141,14 +143,10 @@ function Td({
 }
 
 /**
- * PREMIUM BOT PAGE - Completely redesigned with modern aesthetics
- *
- * Features:
- * - Stunning hero with animated avatar and glow effects
- * - Premium card designs with glassmorphism
- * - Sophisticated typography using display fonts
- * - Rich animations and micro-interactions
- * - Professional color palette with brand colors
+ * One bot's public record: identity, live status, realized stats, positions,
+ * every decision with reasoning, every fill with its Solscan link, lessons,
+ * and the backer-note exchange. Nothing here is invented — every number
+ * traces to a ledger row or the chain.
  */
 export default async function BotPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -240,20 +238,8 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
   return (
     <Scroller>
-      <div className="min-h-screen bg-page-deep relative overflow-hidden">
-        {/* Animated background */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-radial" />
-          <div
-            className="hero-glow"
-            style={{
-              background: `radial-gradient(800px 500px at 30% 20%, ${persona.color}20, transparent 75%)`
-            }}
-          />
-          <div className="absolute inset-0 grid-pattern opacity-20" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-5 py-8">
+      <div className="min-h-full">
+        <div className="mx-auto max-w-[86rem] px-4 py-6">
           {/* Back link */}
           <Link
             href="/"
@@ -265,28 +251,14 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             the arena
           </Link>
 
-          {/* Hero Section - Premium Design */}
-          <section className="card card-elevated-lg overflow-hidden mb-8 animate-fade-in">
-            {/* Background gradient */}
-            <div
-              className="absolute inset-0 opacity-15"
-              style={{
-                background: `radial-gradient(circle at 85% 15%, ${persona.color} 0%, transparent 60%)`
-              }}
-            />
-
-            <div className="relative p-8 md:p-12">
+          {/* Identity */}
+          <section className="card mb-6">
+            <div className="p-6 md:p-8">
               <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  <div className="relative animate-float">
-                    <div
-                      className="absolute -inset-3 rounded-3xl blur-2xl opacity-30 animate-pulse-glow"
-                      style={{ background: persona.color }}
-                    />
-                    <div className="relative card card-glass p-3 rounded-2xl">
-                      <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={100} />
-                    </div>
+                  <div className="card p-3">
+                    <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={88} />
                   </div>
                   <div className="mt-5 flex items-center justify-center gap-2">
                     <div
@@ -323,7 +295,9 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                     {price && (
                       <span className="badge">${price.in} in · ${price.out} out per 1M tokens</span>
                     )}
-                    <span className="badge">wakes at :{String(bot.slot).padStart(2, "0")}</span>
+                    <span className="badge">
+                      wakes in <NextWake slot={bot.slot} wakesPerHour={wakesPerHour()} />
+                    </span>
                   </div>
                   <a
                     href={`https://solscan.io/account/${bot.wallet}`}
@@ -403,7 +377,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
           {/* Stats Grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-10">
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Win Rate</div>
               <div
                 className={`display text-3xl num ${
@@ -418,7 +392,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   : "nothing closed yet"}
               </div>
             </div>
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Realized</div>
               <div
                 className={`display text-3xl num ${
@@ -439,26 +413,26 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   : `avg hold ${tstats.avgHoldHours < 24 ? `${tstats.avgHoldHours.toFixed(1)}h` : `${(tstats.avgHoldHours / 24).toFixed(1)}d`}`}
               </div>
             </div>
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Decisions</div>
               <div className="display text-3xl num">{decStats.n}</div>
               <div className="th mt-1">lifetime</div>
             </div>
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Trades</div>
               <div className="display text-3xl num">{totalTrades}</div>
               <div className="th mt-1">
                 {buys} buy · {sells} sell
               </div>
             </div>
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Thought Cost</div>
               <div className="display text-3xl num">
                 {spent > 0 ? `$${spent.toFixed(2)}` : "$0"}
               </div>
               <div className="th mt-1">total spend</div>
             </div>
-            <div className="card card-glass p-5 text-center interactive">
+            <div className="card p-5 text-center">
               <div className="th mb-2">Avg Latency</div>
               <div className="display text-3xl num">
                 {avgLatency ? `${(avgLatency / 1000).toFixed(2)}s` : "—"}
@@ -597,10 +571,12 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   return (
                     <tr key={p.mint} className="table-row-hover">
                       <Td>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand to-brand/60 flex-shrink-0" />
-                          <span className="font-semibold text-ink">{mintSymbol(p.mint)}</span>
-                        </div>
+                        <Link
+                          href={`/token/${p.mint}`}
+                          className="font-semibold text-ink transition-colors hover:text-brand"
+                        >
+                          {mintSymbol(p.mint)}
+                        </Link>
                       </Td>
                       <Td right>{p.qty.toPrecision(6)}</Td>
                       <Td right>{costSol.toFixed(4)}</Td>
@@ -699,10 +675,12 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                       className="flex flex-wrap items-baseline justify-between gap-4 p-5 table-row-hover"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`h-3 w-3 rounded-full ${
-                          t.side === 'buy' ? 'bg-good' : 'bg-bad'
-                        }`} />
-                        <span className="font-mono font-semibold text-ink">{t.symbol}</span>
+                        <Link
+                          href={`/token/${t.mint}`}
+                          className="font-mono font-semibold text-ink transition-colors hover:text-brand"
+                        >
+                          {t.symbol}
+                        </Link>
                         <span className={`badge ${
                           t.side === 'buy' ? 'badge-success' : 'badge-danger'
                         }`}>

@@ -17,6 +17,9 @@ export async function Nav() {
           <Link href="/market" className="transition-colors hover:text-ink">
             the list
           </Link>
+          <Link href="/compare" className="transition-colors hover:text-ink">
+            compare
+          </Link>
           <Link href="/status" className="transition-colors hover:text-ink">
             status
           </Link>

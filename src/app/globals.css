@@ -1,59 +1,52 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────
-   ARENA — Premium Visual System
-   Ground: Deep near-black with subtle blue/gold accents.
-   Primary: Electric blue with vibrant glow effects.
-   Secondary: Rich gold for premium moments.
-   Type: Display (Bricolage Grotesque) / Body (Geist) / Mono (Geist Mono).
+   ARENA — "The tape, published."
+   A market terminal crossed with a broadsheet ledger: flat ink
+   surfaces, hairline rules, mono numerals, dense tables as the
+   hero element. Color is signal, never decoration — P&L green/
+   red, one gold accent (the same gold as Monkey, the bar), and
+   each bot's signature color for identity only.
+   Type: Bricolage Grotesque (wordmark + bot names only) /
+   Geist (body) / Geist Mono (every numeral and label).
    ───────────────────────────────────────────────────────────── */
 :root {
-  /* Base colors - deeper, richer palette */
-  --page: #05080c;
-  --page-deep: #020305;
-  --card: #0d1117;
-  --card-deep: #080b11;
-  --card2: #141a23;
-  --card3: #1b222d;
-  --card4: #252e3b;
-  --ink: #f8f9fc;
-  --ink2: #b0b8c8;
-  --ink3: #6b7485;
-  --ink4: #454d5c;
+  --page: #0a0b0d;
+  --page-deep: #0a0b0d; /* legacy alias — one page color */
+  --card: #101216;
+  --card-deep: #0d0f12;
+  --card2: #16181d;
+  --card3: #1b1e24;
+  --card4: #23262e;
+  --ink: #e8eaf0;
+  --ink2: #9aa3b2;
+  --ink3: #5f6774;
+  --ink4: #3a404c;
 
-  /* Borders and dividers */
-  --hairline: rgba(255, 255, 255, 0.05);
-  --hairline-2: rgba(255, 255, 255, 0.1);
-  --hairline-3: rgba(255, 255, 255, 0.15);
-  --grid: #141a23;
-  --baseline: #2b3441;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-2: rgba(255, 255, 255, 0.13);
+  --hairline-3: rgba(255, 255, 255, 0.2);
+  --grid: #16181d;
+  --baseline: #2b3039;
 
-  /* Brand colors - vibrant and modern */
-  --brand: #3d7dff;
-  --brand-dim: #2f66d8;
-  --brand-light: #6ba1ff;
-  --brand-glow: rgba(61, 125, 255, 0.4);
-  --brand-glow-strong: rgba(61, 125, 255, 0.6);
+  /* One accent: gold. It is already Monkey's color — "the bar" —
+     and it separates Arena from every blue dashboard on earth. */
+  --brand: #e8c15a;
+  --brand-dim: #c9a544;
+  --brand-light: #f2d383;
 
-  /* Gold for premium moments */
-  --gold: #f0b429;
-  --gold-light: #f7c96b;
-  --gold-glow: rgba(240, 180, 41, 0.4);
+  --gold: #e8c15a;
+  --gold-light: #f2d383;
 
-  /* Status colors - more vibrant */
-  --good: #22c55e;
+  --good: #35c77f;
   --good-light: #4ade80;
-  --good-glow: rgba(34, 197, 94, 0.3);
-
-  --bad: #f0453f;
+  --bad: #f05252;
   --bad-light: #f87171;
-  --bad-glow: rgba(240, 69, 63, 0.3);
+  --warn: #e8a13a;
+  --warn-light: #f0b45e;
 
-  --warn: #f0b429;
-  --warn-light: #fbbf24;
-  --warn-glow: rgba(240, 180, 41, 0.3);
-
-  /* Bot signature colors - more vibrant */
+  /* Bot signature colors — the personality system. Used ONLY for
+     avatars, sparklines and compare-chart lines. Never chrome. */
   --s1: #3d7dff;
   --s2: #ff6b6b;
   --s3: #4ecdc4;
@@ -105,37 +98,34 @@
 @layer base {
   html {
     color-scheme: dark;
-    scroll-behavior: smooth;
   }
 
   body {
-    background: var(--page-deep);
+    background: var(--page);
     color: var(--ink);
     font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    background: var(--brand-glow);
+    background: rgba(232, 193, 90, 0.25);
     color: #fff;
   }
 
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-
   ::-webkit-scrollbar-track {
-    background: var(--card-deep);
+    background: var(--page);
   }
-
   ::-webkit-scrollbar-thumb {
     background: var(--card3);
     border-radius: 4px;
   }
-
   ::-webkit-scrollbar-thumb:hover {
     background: var(--card4);
   }
@@ -143,28 +133,18 @@
 
 @layer components {
   /* ── Typography ───────────────────────────────────────────── */
+  /* Bricolage survives only for the wordmark and bot names. */
   .display {
     font-family: var(--font-display), var(--font-geist-sans), sans-serif;
     font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 0.96;
+    letter-spacing: -0.03em;
+    line-height: 1;
     text-wrap: balance;
   }
 
-  .display-lg {
-    font-size: 3.5rem;
-    line-height: 1;
-  }
-
-  .display-md {
-    font-size: 2.5rem;
-    line-height: 1.05;
-  }
-
-  .display-sm {
-    font-size: 1.875rem;
-    line-height: 1.1;
-  }
+  .display-lg { font-size: 2.25rem; }
+  .display-md { font-size: 1.75rem; }
+  .display-sm { font-size: 1.15rem; line-height: 1.15; }
 
   .num {
     font-family: var(--font-geist-mono), ui-monospace, monospace;
@@ -177,253 +157,121 @@
     font-family: var(--font-geist-mono), monospace;
     font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     color: var(--ink3);
-    font-weight: 600;
+    font-weight: 500;
   }
 
-  /* ── Surfaces ───────────────────────────────────────────── */
+  /* Sections are labeled, not headlined: an 11px mono label with a
+     hairline rule filling the rest of the width. */
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-geist-mono), monospace;
+    font-size: 0.69rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink2);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .section-label::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: var(--hairline);
+  }
+
+  /* ── Surfaces ─────────────────────────────────────────────── */
+  /* Flat ink. Elevation is a border and one background step —
+     never a shadow, never a blur. 6px radius reads instrument;
+     16px read consumer. */
   .card {
-    position: relative;
-    background: linear-gradient(145deg, var(--card2) 0%, var(--card) 60%);
+    background: var(--card);
     border: 1px solid var(--hairline);
-    border-radius: 16px;
+    border-radius: 6px;
     overflow: hidden;
   }
 
-  /* Top highlight with gradient */
-  .card::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 1px;
-    border-radius: 16px 16px 0 0;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.12) 25%,
-      rgba(255, 255, 255, 0.12) 75%,
-      transparent
-    );
-    pointer-events: none;
-  }
+  /* Legacy classes kept so old markup stays valid — all flat now. */
+  .card-glass { background: var(--card); }
+  .card-elevated { border-color: var(--hairline); }
+  .card-elevated-lg { border-color: var(--hairline-2); }
 
-  /* Subtle inner shadow for depth */
-  .card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
-    pointer-events: none;
-  }
-
-  .card-glass {
-    background: linear-gradient(145deg, rgba(20, 26, 35, 0.8) 0%, rgba(13, 17, 23, 0.9) 100%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-
-  .card-elevated {
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.3),
-      0 10px 20px -5px rgba(0, 0, 0, 0.2),
-      0 0 0 1px var(--hairline);
-  }
-
-  .card-elevated-lg {
-    box-shadow:
-      0 20px 40px -10px rgba(0, 0, 0, 0.5),
-      0 0 0 1px var(--hairline);
-  }
-
-  /* ── Interactions ─────────────────────────────────────────── */
   .interactive {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
-
   .interactive:hover {
-    transform: translateY(-2px);
     border-color: var(--hairline-2);
-    box-shadow:
-      0 8px 16px -4px rgba(0, 0, 0, 0.4),
-      0 0 0 1px var(--hairline-2);
   }
 
-  .interactive:active {
-    transform: translateY(0);
-  }
-
-  /* ── Buttons ─────────────────────────────────────────────── */
+  /* ── Buttons ──────────────────────────────────────────────── */
   .btn-primary {
-    position: relative;
-    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dim) 100%);
-    color: #fff;
+    background: var(--brand);
+    color: #0a0b0d;
     font-weight: 600;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.2),
-      0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-      0 8px 20px -4px var(--brand-glow);
-    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    transition: filter 0.15s ease;
   }
-
-  .btn-primary:hover {
-    background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand) 100%);
-    box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-      0 12px 28px -4px var(--brand-glow-strong);
-    transform: translateY(-1px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(0);
-  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:active { filter: brightness(0.95); }
 
   .btn-secondary {
     background: transparent;
     color: var(--ink2);
     border: 1px solid var(--hairline-2);
+    border-radius: 6px;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: border-color 0.15s ease, color 0.15s ease;
   }
-
   .btn-secondary:hover {
-    background: var(--card2);
     border-color: var(--hairline-3);
     color: var(--ink);
   }
 
-  /* ── Badges and Chips ───────────────────────────────────── */
+  /* ── Badges ───────────────────────────────────────────────── */
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     border: 1px solid var(--hairline);
-    border-radius: 9999px;
-    padding: 3px 10px;
+    border-radius: 3px;
+    padding: 2px 7px;
     font-family: var(--font-geist-mono), monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     font-weight: 600;
     color: var(--ink3);
     white-space: nowrap;
-    background: var(--card);
-    transition: all 0.2s ease;
+    background: transparent;
   }
+  .badge-primary { border-color: rgba(232, 193, 90, 0.5); color: var(--brand); }
+  .badge-success { border-color: rgba(53, 199, 127, 0.5); color: var(--good); background: rgba(53, 199, 127, 0.08); }
+  .badge-danger { border-color: rgba(240, 82, 82, 0.5); color: var(--bad); background: rgba(240, 82, 82, 0.08); }
+  .badge-warning { border-color: rgba(232, 161, 58, 0.5); color: var(--warn); }
 
-  .badge-primary {
-    border-color: rgba(61, 125, 255, 0.4);
-    color: var(--brand);
-    background: rgba(61, 125, 255, 0.1);
-  }
-
-  .badge-success {
-    border-color: rgba(34, 197, 94, 0.4);
-    color: var(--good);
-    background: rgba(34, 197, 94, 0.1);
-  }
-
-  .badge-danger {
-    border-color: rgba(240, 69, 63, 0.4);
-    color: var(--bad);
-    background: rgba(240, 69, 63, 0.1);
-  }
-
-  .badge-warning {
-    border-color: rgba(240, 180, 41, 0.4);
-    color: var(--warn);
-    background: rgba(240, 180, 41, 0.1);
-  }
-
-  /* ── Ambient Effects ────────────────────────────────────── */
-  .hero-glow {
-    position: absolute;
-    inset: -50% 0 auto 0;
-    height: 800px;
-    background:
-      radial-gradient(800px 400px at 20% 20%, rgba(61, 125, 255, 0.15), transparent 70%),
-      radial-gradient(600px 300px at 80% 10%, rgba(240, 180, 41, 0.08), transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .grid-pattern {
-    background-image:
-      linear-gradient(var(--hairline) 1px, transparent 1px),
-      linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-    background-size: 72px 72px;
-    mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 75%);
-  }
-
-  .bg-gradient-radial {
-    background: radial-gradient(circle at center, var(--card2) 0%, var(--page-deep) 100%);
-  }
-
-  /* ── Animations ─────────────────────────────────────────── */
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes slide-in {
-    from { opacity: 0; transform: translateX(-12px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -500px 0; }
-    100% { background-position: 500px 0; }
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-
-  .animate-fade-in {
-    animation: fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
-  }
-
-  .animate-slide-in {
-    animation: slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .skeleton {
-    background: linear-gradient(90deg, var(--card2) 25%, var(--card3) 50%, var(--card2) 75%);
-    background-size: 1000px 100%;
-    animation: shimmer 1.6s linear infinite;
-    border-radius: 8px;
-  }
-
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  /* ── Tables ───────────────────────────────────────────────── */
+  /* ── Tables (the core pattern) ────────────────────────────── */
   .table-row-hover:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .table-sticky thead th {
     position: sticky;
     top: 0;
-    background: var(--card-deep);
+    background: var(--card2);
     z-index: 10;
-    backdrop-filter: blur(8px);
   }
 
-  /* ── Input Elements ───────────────────────────────────────── */
+  /* ── The one surviving live-data affordance ───────────────── */
+  @keyframes cell-flash {
+    0% { background: rgba(232, 193, 90, 0.14); }
+    100% { background: transparent; }
+  }
+  .cell-flash { animation: cell-flash 0.5s ease-out; }
+
   input[type="range"] {
     accent-color: var(--brand);
     height: 4px;
@@ -431,7 +279,6 @@
     background: var(--card3);
   }
 
-  /* ── Reduced Motion ───────────────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

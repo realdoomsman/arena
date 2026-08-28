@@ -12,6 +12,7 @@ export function TradeTicker() {
   if (fills.length === 0) return null;
 
   const ago = (ts: number) => {
+    // eslint-disable-next-line react-hooks/purity
     const m = Math.max(0, Math.round((Date.now() - ts) / 60_000));
     if (m < 60) return `${m}m`;
     if (m < 24 * 60) return `${Math.round(m / 60)}h`;

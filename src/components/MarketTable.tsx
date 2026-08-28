@@ -144,9 +144,7 @@ export function MarketTable({
                 <td className="px-3 py-2 num text-[0.68rem] text-ink3">{t.idx}</td>
                 <td className="px-3 py-2">
                   <a
-                    href={`https://solscan.io/token/${t.mint}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`/token/${t.mint}`}
                     className="text-[0.8rem] font-medium text-ink transition-colors hover:text-brand"
                   >
                     {t.symbol}

@@ -91,15 +91,51 @@ export default async function DecisionPage({
   return (
     <Scroller>
       <div className="mx-auto max-w-5xl px-5 py-10">
-        <Link
-          href={`/bot/${bot.slug}`}
-          className="font-mono text-[0.75rem] text-ink3 hover:text-brand inline-flex items-center gap-2"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to {bot.name}
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            href={`/bot/${bot.slug}`}
+            className="font-mono text-[0.75rem] text-ink3 hover:text-brand inline-flex items-center gap-2"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to {bot.name}
+          </Link>
+          <div className="flex items-center gap-4 font-mono text-[0.72rem]">
+            {(() => {
+              const prev = db
+                .prepare(
+                  `SELECT id FROM bot_decisions WHERE bot_id = ? AND id < ?
+                   AND (published_at IS NOT NULL OR error IS NOT NULL) ORDER BY id DESC LIMIT 1`
+                )
+                .get(bot.id, row.id) as { id: number } | undefined;
+              const next = db
+                .prepare(
+                  `SELECT id FROM bot_decisions WHERE bot_id = ? AND id > ?
+                   AND (published_at IS NOT NULL OR error IS NOT NULL) ORDER BY id ASC LIMIT 1`
+                )
+                .get(bot.id, row.id) as { id: number } | undefined;
+              return (
+                <>
+                  {prev ? (
+                    <Link href={`/bot/${bot.slug}/decisions/${prev.id}`} className="text-ink3 hover:text-brand">
+                      ← earlier
+                    </Link>
+                  ) : (
+                    <span className="text-ink4">← earlier</span>
+                  )}
+                  {next ? (
+                    <Link href={`/bot/${bot.slug}/decisions/${next.id}`} className="text-ink3 hover:text-brand">
+                      later →
+                    </Link>
+                  ) : (
+                    <span className="text-ink4">later →</span>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <header className="mt-8 border-b border-hairline pb-6">
