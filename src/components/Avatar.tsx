@@ -64,7 +64,14 @@ export function Avatar({
       style={{
         width: size,
         height: size,
-        background: dim ? "transparent" : `color-mix(in oklab, ${color} 14%, transparent)`,
+        // A top-lit ground + a thin rim in the bot's own colour give the mark
+        // dimensional, coin-like weight. Kept to a whisper — no bevel, no gloss.
+        background: dim
+          ? "transparent"
+          : `radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, ${color} 26%, transparent), color-mix(in oklab, ${color} 9%, transparent))`,
+        boxShadow: dim
+          ? undefined
+          : `inset 0 0 0 1px color-mix(in oklab, ${color} 42%, transparent), inset 0 1px 0 0 rgba(255,255,255,0.10)`,
         opacity: dim ? 0.4 : 1,
       }}
       role="img"

@@ -122,6 +122,18 @@
     color: #fff;
   }
 
+  /* Keyboard focus — one crisp brand ring app-wide. Modern browsers clip the
+     outline to each element's own radius, so it looks right on cards, pills and
+     buttons with no per-element work. Mouse clicks stay clean (:focus-visible). */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -266,7 +278,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;
-    color: var(--ink3);
+    color: var(--ink2);
     white-space: nowrap;
     background: rgba(255, 255, 255, 0.03);
   }
@@ -302,6 +314,15 @@
     to { opacity: 1; transform: translateY(0); }
   }
   .animate-in { animation: fade-in-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+  /* A slow breathing halo for genuinely-live indicators — the "this bot is
+     trading real money right now" heartbeat. Semantic --good, low alpha, 2s:
+     a gentle pulse reads premium; a fast blink reads casino. */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.5); }
+    50% { box-shadow: 0 0 0 5px rgba(61, 220, 132, 0); }
+  }
+  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
   input[type="range"] {
     accent-color: var(--brand);

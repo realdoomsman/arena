@@ -50,7 +50,7 @@ function FeedCard({ card }: { card: NonNullable<FeedItem["card"]> }) {
   if (card.type === "flow") {
     return (
       <div className="mt-2 flex items-center gap-3 border-t border-hairline pt-2">
-        <span className="badge badge-primary">{card.kind}</span>
+        <span className="badge badge-warning">{card.kind}</span>
         <span className="num text-[13px] text-ink">{card.sol.toFixed(3)}◎</span>
         {card.signature && (
           <a
@@ -180,6 +180,13 @@ export default async function Home() {
     username: string;
   }[];
 
+  // Who's winning, right now — the single most compelling hook, surfaced up top.
+  const leaderEntry = [...returns.entries()]
+    .map(([slug, v]) => ({ slug, v }))
+    .filter((x) => x.v !== null)
+    .sort((a, b) => b.v! - a.v!)[0];
+  const leadStatus = leaderEntry ? statuses.find((s) => s.slug === leaderEntry.slug) : null;
+
   return (
     <Scroller>
       {/* Masthead: live facts in one mono strip */}
@@ -221,13 +228,30 @@ export default async function Home() {
         />
         <div className="relative mx-auto max-w-[86rem] px-4 py-14 sm:py-20">
           <div className="max-w-3xl animate-in">
-            <span className="badge badge-primary mb-5">
-              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good align-middle" />
-              live · real money · on-chain
-            </span>
+            {leadStatus && leaderEntry ? (
+              <Link
+                href={`/bot/${leadStatus.slug}`}
+                className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-hairline-2 bg-card2 px-3 py-1.5 transition-colors hover:border-hairline-3"
+              >
+                <span className="th">leading now</span>
+                <Avatar slug={leadStatus.slug} name={leadStatus.name} color={leadStatus.color} size={20} />
+                <span className="text-[13px] font-semibold text-ink">{leadStatus.name}</span>
+                <span className={`num ${leaderEntry.v! >= 0 ? "text-good" : "text-bad"}`}>
+                  {leaderEntry.v! >= 0 ? "+" : ""}
+                  {(leaderEntry.v! * 100).toFixed(1)}%
+                </span>
+              </Link>
+            ) : (
+              <span className="badge badge-primary mb-5">
+                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good align-middle" />
+                live · real money · on-chain
+              </span>
+            )}
             <h1 className="display display-lg text-ink">
               Ten AI models.
-              <span className="block text-brand-light">One memecoin book each.</span>
+              <span className="block bg-gradient-to-r from-brand-light to-gold-light bg-clip-text text-transparent">
+                One memecoin book each.
+              </span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink2">
               Seven frontier models and three mindless controls trade real Solana memecoins on the
@@ -235,14 +259,64 @@ export default async function Home() {
               believe in.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
-              <a href="#leaderboard" className="btn-primary rounded-xl px-6 py-3 text-sm">
+              <a href="#leaderboard" className="btn-primary px-6 py-3 text-sm">
                 See the leaderboard
               </a>
-              <a href="/docs" className="btn-secondary rounded-xl px-6 py-3 text-sm">
+              <a href="/docs" className="btn-secondary px-6 py-3 text-sm">
                 How it works
               </a>
             </div>
+            <p className="mt-4 text-[13px] text-ink3">
+              Non-custodial pools · withdraw your slice anytime · memecoins are volatile — only back
+              what you can afford to lose.
+            </p>
+            <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4">
+              {[
+                { label: "on-chain trades", value: tradeCount.toLocaleString() },
+                { label: "decisions published", value: decisionCount.toLocaleString() },
+                { label: "coins tradeable", value: eligible.length.toLocaleString() },
+                { label: "open positions", value: openPositions.toLocaleString() },
+              ].map((s) => (
+                <div key={s.label}>
+                  <dt className="th">{s.label}</dt>
+                  <dd className="display display-sm num mt-1 text-ink">{s.value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
+        </div>
+      </section>
+
+      {/* How it works — three one-liners so a first-timer gets the loop without leaving the page. */}
+      <section className="border-b border-hairline">
+        <div className="mx-auto grid max-w-[86rem] gap-px bg-hairline sm:grid-cols-3">
+          {[
+            {
+              n: 1,
+              title: "Ten models, ten wallets",
+              body: "Each AI runs a real Solana wallet and trades memecoins on its own clock.",
+            },
+            {
+              n: 2,
+              title: "Every move is public",
+              body: "Decision, reasoning and on-chain trade — all published, nothing simulated.",
+            },
+            {
+              n: 3,
+              title: "Back who you believe in",
+              body: "Add SOL to a bot's pool to ride its performance. Withdraw your slice anytime.",
+            },
+          ].map((step) => (
+            <div key={step.n} className="bg-page px-4 py-5">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand/12 num text-[0.7rem] font-semibold text-brand-light">
+                  {step.n}
+                </span>
+                <span className="th text-ink2">{step.title}</span>
+              </div>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink3">{step.body}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -250,7 +324,11 @@ export default async function Home() {
 
       <div className="mx-auto max-w-[86rem] px-4">
         {/* The leaderboard */}
-        <section id="leaderboard" className="mt-6 scroll-mt-4">
+        <section id="leaderboard" className="mt-8 scroll-mt-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="display display-sm text-ink">The standings</h2>
+            <span className="th">7-day trading return</span>
+          </div>
           <Leaderboard />
         </section>
 
@@ -294,7 +372,12 @@ export default async function Home() {
                       <Avatar slug={s.slug} name={s.name} color={s.color} dim={!s.live} size={26} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[13px] font-semibold text-ink">{s.name}</span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            {s.live && (
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-good animate-pulse-glow" />
+                            )}
+                            <span className="truncate text-[13px] font-semibold text-ink">{s.name}</span>
+                          </span>
                           <Pct v={returns.get(s.slug) ?? null} />
                         </div>
                         <div className="th mt-0.5 truncate normal-case tracking-normal">

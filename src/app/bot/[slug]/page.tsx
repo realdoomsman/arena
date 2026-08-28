@@ -81,7 +81,7 @@ function Section({
     <section className={`mt-8 ${className}`}>
       <div className="section-label mb-3">
         <span>{title}</span>
-        {note && <span className="text-ink4 normal-case tracking-normal">{note}</span>}
+        {note && <span className="text-ink3 normal-case tracking-normal">{note}</span>}
       </div>
       {children}
     </section>

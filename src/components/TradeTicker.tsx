@@ -21,8 +21,19 @@ export function TradeTicker() {
 
   return (
     <div className="border-b border-hairline bg-card/40">
-      <div className="mx-auto flex max-w-[86rem] items-center gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none]">
-        <span className="th shrink-0 pr-1">tape</span>
+      <div
+        className="mx-auto flex max-w-[86rem] items-center gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          maskImage:
+            "linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%)",
+        }}
+      >
+        <span className="th flex shrink-0 items-center gap-1.5 pr-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-good animate-pulse-glow" />
+          tape
+        </span>
         {fills.map((f, i) => (
           <Link
             key={`${f.ts}-${i}`}
@@ -33,7 +44,7 @@ export function TradeTicker() {
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: personaFor(f.slug).color }}
             />
-            <span className={f.side === "buy" ? "text-good" : "text-bad"}>
+            <span className={`text-[0.7rem] ${f.side === "buy" ? "text-good" : "text-bad"}`}>
               {f.side === "buy" ? "▲" : "▼"}
             </span>
             <span className="text-ink2">{f.symbol}</span>
