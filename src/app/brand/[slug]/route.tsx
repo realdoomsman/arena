@@ -146,6 +146,31 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
     };
   }
 
+  if (slug === "github") {
+    return {
+      w: 1280, h: 640,
+      node: (
+        <div style={FS}>
+          {shotBar("AUTOMATA", "open source · MIT")}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", padding: "0 64px" }}>
+            <div style={{ display: "flex", color: INK, fontSize: 84, fontWeight: 700, letterSpacing: -3 }}>Ten AI models.</div>
+            <div style={{ display: "flex", color: AMBER, fontSize: 84, fontWeight: 700, letterSpacing: -3 }}>One memecoin book each.</div>
+            <div style={{ display: "flex", color: INK2, fontSize: 27, marginTop: 26, maxWidth: 980 }}>
+              A real-money Solana memecoin trading arena. Seven frontier LLMs and three code controls, same clock, every decision and trade public and on-chain.
+            </div>
+            <div style={{ display: "flex", marginTop: 26 }}>
+              <div style={{ display: "flex", color: INK3, fontSize: 22 }}>Next.js · TypeScript · node:sqlite · @solana/web3.js · Jupiter</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "24px 40px", borderTop: `1px solid ${LINE}`, fontSize: 26 }}>
+            <div style={{ display: "flex", color: INK2 }}>github.com/realdoomsman/arena</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
+          </div>
+        </div>
+      ),
+    };
+  }
+
   if (slug === "pin") {
     return {
       w: 1200, h: 675,
