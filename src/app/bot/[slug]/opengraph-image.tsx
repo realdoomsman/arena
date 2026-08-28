@@ -14,19 +14,19 @@ const DAY = 24 * 3600_000;
 // Persona colors are CSS variables for the DOM; satori needs literals. Same
 // values as globals.css :root.
 const CSS_COLORS: Record<string, string> = {
-  "var(--s1)": "#6ba3ff",
-  "var(--s2)": "#ff7a8a",
-  "var(--s3)": "#4ecdc4",
-  "var(--s4)": "#f7c04a",
+  "var(--s1)": "#4d9fff",
+  "var(--s2)": "#ff6b7d",
+  "var(--s3)": "#35d0c4",
+  "var(--s4)": "#ffc23f",
   "var(--s5)": "#b98cff",
-  "var(--s6)": "#4fe0a0",
-  "var(--s7)": "#59b7ff",
-  "var(--s8)": "#ff9d5c",
-  "var(--gold)": "#f0c65a",
-  "var(--ink2)": "#bdb6cf",
-  "var(--ink3)": "#8a839e",
+  "var(--s6)": "#3ee08f",
+  "var(--s7)": "#56b6ff",
+  "var(--s8)": "#ff9d4d",
+  "var(--gold)": "#ffd23f",
+  "var(--ink2)": "#a6a8ae",
+  "var(--ink3)": "#71747b",
 };
-const hex = (cssColor: string | undefined) => CSS_COLORS[cssColor ?? ""] ?? "#f0c65a";
+const hex = (cssColor: string | undefined) => CSS_COLORS[cssColor ?? ""] ?? "#f5a623";
 
 /**
  * The share card. Every link posted to X becomes a small billboard: name in
@@ -64,8 +64,8 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#100e17",
-          color: "#f6f4fb",
+          background: "#0a0a0b",
+          color: "#eaebed",
           padding: 64,
           fontFamily: "monospace",
         }}
@@ -77,25 +77,25 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
                 width: 28,
                 height: 28,
                 background: hex(persona?.color),
-                borderRadius: 6,
+                borderRadius: 2,
               }}
             />
             <div style={{ fontSize: 56, fontWeight: 700, color: hex(persona?.color) }}>
               {bot?.name ?? "Automata"}
             </div>
           </div>
-          <div style={{ fontSize: 28, color: "#8a839e", letterSpacing: 4 }}>◆ AUTOMATA</div>
+          <div style={{ fontSize: 28, color: "#f5a623", letterSpacing: 4 }}>◆ AUTOMATA</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 24, color: "#8a839e", textTransform: "uppercase", letterSpacing: 3 }}>
+            <div style={{ fontSize: 24, color: "#71747b", textTransform: "uppercase", letterSpacing: 3 }}>
               7-day trading return
             </div>
-            <div style={{ fontSize: 120, fontWeight: 700, color: d7 === null ? "#8a839e" : up ? "#3ddc84" : "#ff5c6c" }}>
+            <div style={{ fontSize: 120, fontWeight: 700, color: d7 === null ? "#71747b" : up ? "#2ee27a" : "#ff5b5b" }}>
               {pct}
             </div>
-            <div style={{ display: "flex", gap: 40, fontSize: 26, color: "#bdb6cf" }}>
+            <div style={{ display: "flex", gap: 40, fontSize: 26, color: "#a6a8ae" }}>
               <div style={{ display: "flex" }}>
                 win rate{" "}
                 {stats?.winRate == null ? "—" : ` ${(stats.winRate * 100).toFixed(0)}%`}
@@ -116,9 +116,9 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
                   style={{
                     width: 8,
                     height: h,
-                    background: up ? "#3ddc84" : "#ff5c6c",
+                    background: up ? "#2ee27a" : "#ff5b5b",
                     opacity: 0.4 + (i / bars.length) * 0.6,
-                    borderRadius: 2,
+                    borderRadius: 0,
                   }}
                 />
               ))}
@@ -126,7 +126,7 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
           )}
         </div>
 
-        <div style={{ fontSize: 22, color: "#8a839e" }}>
+        <div style={{ fontSize: 22, color: "#71747b" }}>
           real wallets · real swaps · no simulated data · beating the random picker is the bar
         </div>
       </div>
