@@ -316,6 +316,19 @@
   }
   .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
+  /* Scrolling ticker — the tape crawling along the bottom rail. Pauses on
+     hover; the reduced-motion guard below freezes it to a static strip. */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .marquee {
+    display: inline-flex;
+    white-space: nowrap;
+    animation: marquee 45s linear infinite;
+  }
+  .marquee:hover { animation-play-state: paused; }
+
   input[type="range"] {
     accent-color: var(--brand);
     height: 4px;

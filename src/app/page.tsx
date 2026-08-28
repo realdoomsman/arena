@@ -1,3 +1,4 @@
+import { getAutomataFeed } from "@/lib/arena-feed";
 import { buildEligibleList } from "@/lib/bot-universe";
 import { getBotReturn, listBots, totalUnits } from "@/lib/bot-nav";
 import { getPrices } from "@/lib/prices";
@@ -6,7 +7,13 @@ import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { getDb } from "@/lib/db";
 import { personaFor } from "@/lib/bot-persona";
 import { botTradeStats, botAnalytics, sparkline, latestFills } from "@/lib/bot-stats";
-import { Workspace, type BotCard, type TapeLine } from "@/components/Workspace";
+import {
+  Workspace,
+  type BotCard,
+  type TapeLine,
+  type FeedLine,
+  type HotToken,
+} from "@/components/Workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +21,10 @@ const DAY = 24 * 3600_000;
 
 /**
  * The workspace desktop. The homepage is not a page you scroll — it is a
- * windowing terminal: a live standings panel, the tape, and a bot dock. Click
- * any model to open its book in a draggable window. Server data refreshes
- * underneath without disturbing the windows.
+ * windowing terminal: live standings, activity, the tape, a hot-market panel
+ * and an about panel, plus a bot dock. Click any model to open its book in a
+ * draggable window. Server data refreshes underneath without disturbing the
+ * windows.
  */
 export default async function Home() {
   const bots = listBots();
@@ -32,6 +40,11 @@ export default async function Home() {
   const tradeCount = (db.prepare("SELECT COUNT(*) AS n FROM bot_trades").get() as { n: number }).n;
   const openPositions = (
     db.prepare("SELECT COUNT(*) AS n FROM bot_holdings WHERE qty > 0").get() as { n: number }
+  ).n;
+  const backerCount = (
+    db.prepare("SELECT COUNT(DISTINCT user_id) AS n FROM bot_units WHERE units > 0").get() as {
+      n: number;
+    }
   ).n;
   const posStmt = db.prepare("SELECT COUNT(*) AS n FROM bot_holdings WHERE bot_id = ? AND qty > 0");
 
@@ -60,7 +73,7 @@ export default async function Home() {
     };
   });
 
-  const tape: TapeLine[] = latestFills(24).map((f) => ({
+  const tape: TapeLine[] = latestFills(40).map((f) => ({
     ts: f.ts,
     slug: f.slug,
     name: f.name,
@@ -69,13 +82,31 @@ export default async function Home() {
     sol: f.lamports / LAMPORTS_PER_SOL,
   }));
 
+  const feed: FeedLine[] = getAutomataFeed(60).map((it) => ({
+    ts: it.ts,
+    slug: it.botSlug,
+    name: it.botName ?? "system",
+    color: it.color,
+    kind: it.kind,
+    text: it.text,
+  }));
+
+  const hot: HotToken[] = eligible.slice(0, 14).map((t) => ({
+    symbol: t.symbol,
+    mint: t.mint,
+    fresh: Boolean(t.fresh),
+    vol1hUsd: t.vol1hUsd ?? null,
+    change1h: t.change1h ?? null,
+  }));
+
   const facts = {
     sol: solUsd,
     tradeable: eligible.length,
     decisions: decisionCount,
     fills: tradeCount,
     open: openPositions,
+    backers: backerCount,
   };
 
-  return <Workspace bots={cards} tape={tape} facts={facts} />;
+  return <Workspace bots={cards} tape={tape} feed={feed} hot={hot} facts={facts} />;
 }
