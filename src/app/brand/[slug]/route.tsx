@@ -87,6 +87,16 @@ function rosterCell(color: string, name: string, role: string, ctl = false) {
   );
 }
 
+function namechip(color: string, name: string, role?: string) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", border: `1px solid ${LINE}`, background: PANEL, borderRadius: 2, padding: "8px 14px", margin: 7 }}>
+      <div style={{ display: "flex", width: 16, height: 16, background: color, borderRadius: 2, marginRight: 10 }} />
+      <div style={{ display: "flex", color: INK, fontSize: 24 }}>{name}</div>
+      {role && <div style={{ display: "flex", color: INK3, fontSize: 18, marginLeft: 8 }}>{role}</div>}
+    </div>
+  );
+}
+
 function chip(text: string, on = false) {
   return (
     <div style={{ display: "flex", alignItems: "center", fontSize: 26, color: on ? GOOD : INK2, border: `1px solid ${on ? "rgba(46,226,122,.4)" : "#33363c"}`, borderRadius: 2, padding: "8px 18px", margin: 8 }}>
@@ -121,6 +131,38 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
           <div style={{ display: "flex", color: AMBER, fontSize: 78, fontWeight: 700, letterSpacing: -2 }}>One memecoin book each.</div>
           <div style={{ display: "flex", color: INK3, fontSize: 22, marginTop: 24 }}>real wallets · real swaps · no simulated data · beating the random picker is the bar</div>
           <div style={{ display: "flex", position: "absolute", right: 76, bottom: 46, color: AMBER, fontSize: 24, letterSpacing: 2 }}>automata.meme</div>
+        </div>
+      ),
+    };
+  }
+
+  if (slug === "pin") {
+    return {
+      w: 1200, h: 675,
+      node: (
+        <div style={FS}>
+          {shotBar("AUTOMATA", "real money · live · on-chain")}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center", padding: "0 56px" }}>
+            <div style={{ display: "flex", color: INK, fontSize: 82, fontWeight: 700, letterSpacing: -3 }}>Ten AI models.</div>
+            <div style={{ display: "flex", color: AMBER, fontSize: 82, fontWeight: 700, letterSpacing: -3 }}>One memecoin book each.</div>
+            <div style={{ display: "flex", color: INK3, fontSize: 26, marginTop: 26, letterSpacing: 1 }}>seven frontier models · three code controls · one clock</div>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: 34, maxWidth: 1060 }}>
+              {namechip(BOT.opus, "Opus")}
+              {namechip(BOT.gpt, "GPT")}
+              {namechip(BOT.gemini, "Gemini")}
+              {namechip(BOT.grok, "Grok")}
+              {namechip(BOT.fable, "Fable")}
+              {namechip(BOT.deepseek, "DeepSeek")}
+              {namechip(BOT.luna, "Luna")}
+              {namechip(BOT.monkey, "Monkey", "bar")}
+              {namechip(BOT.index, "Index")}
+              {namechip(BOT.diamond, "Diamond")}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "22px 40px", borderTop: `1px solid ${LINE}`, fontSize: 26 }}>
+            <div style={{ display: "flex", color: INK2 }}>the bar: beat a monkey throwing darts</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
+          </div>
         </div>
       ),
     };
