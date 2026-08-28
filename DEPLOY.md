@@ -1,4 +1,4 @@
-# Deploying Arena
+# Deploying Automata
 
 One process, one disk, one replica — see the Dockerfile header for why each of
 those is a hard requirement.

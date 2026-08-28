@@ -11,7 +11,7 @@ import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Status — Arena" };
+export const metadata = { title: "Status — Automata" };
 
 type Check = { label: string; ok: boolean | null; detail: string; blocking: boolean };
 

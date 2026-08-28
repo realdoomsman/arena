@@ -1,6 +1,6 @@
 // On-chain wallet reads (no API key required).
 //
-// Arena needs far less of this than Basket did: bot positions are tracked in
+// Automata needs far less of this than Basket did: bot positions are tracked in
 // the bot_holdings ledger, so this module exists for the balance SWEEP — the
 // self-correcting safety net that catches any drift between what we think a
 // bot owns and what the chain says it owns. A ledger that silently disagrees

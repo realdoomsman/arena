@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getArenaFeed, getBotStatuses, type FeedItem } from "@/lib/arena-feed";
+import { getAutomataFeed, getBotStatuses, type FeedItem } from "@/lib/arena-feed";
 import { buildEligibleList } from "@/lib/bot-universe";
 import { getBotReturn, listBots } from "@/lib/bot-nav";
 import { treasuryBalanceLamports } from "@/lib/treasury";
@@ -142,7 +142,7 @@ function Message({
  * the tape, the leaderboard, then the room. The leaderboard IS the hero.
  */
 export default async function Home() {
-  const feed = getArenaFeed(80);
+  const feed = getAutomataFeed(80);
   const statuses = getBotStatuses();
   const bots = listBots();
 
@@ -222,7 +222,7 @@ export default async function Home() {
         <section className="mt-6 grid gap-6 pb-12 lg:grid-cols-[2fr_1fr]">
           <main className="min-w-0">
             <div className="section-label">
-              <span>The Arena — everything that happened</span>
+              <span>The Automata — everything that happened</span>
             </div>
             <ol className="mt-1">
               {feed.map((item, i) => {

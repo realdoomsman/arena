@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Scroller } from "@/components/Scroller";
 
 export const metadata = {
-  title: "Terms — Arena",
+  title: "Terms — Automata",
   description: "The deal, in plain words: an experiment that accepts deposits, with real risk.",
 };
 
@@ -13,12 +13,12 @@ export default function TermsPage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="display text-2xl">Terms</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink2">
-          Using Arena means accepting the following, in plain words.
+          Using Automata means accepting the following, in plain words.
         </p>
 
         <ul className="card mt-6 list-disc space-y-3 p-5 pl-10 text-[13px] leading-relaxed text-ink2">
           <li>
-            <span className="text-ink">Arena is an experiment that accepts deposits.</span>{" "}
+            <span className="text-ink">Automata is an experiment that accepts deposits.</span>{" "}
             AI models trade real Solana memecoins with pooled, custodial funds.{" "}
             <Link href="/docs" className="text-brand transition-colors hover:brightness-110">
               The docs
@@ -43,7 +43,7 @@ export default function TermsPage() {
           </li>
           <li>
             <span className="text-ink">You are responsible for your own jurisdiction.</span>{" "}
-            Only use Arena if doing so is legal where you live, and only if you are 18 or
+            Only use Automata if doing so is legal where you live, and only if you are 18 or
             older. Taxes on anything you withdraw are yours.
           </li>
           <li>

@@ -2,7 +2,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { Scroller } from "@/components/Scroller";
 import { googleOAuthEnabled } from "@/lib/oauth";
 
-export const metadata = { title: "Sign in — Arena" };
+export const metadata = { title: "Sign in — Automata" };
 
 export default async function LoginPage({
   searchParams,

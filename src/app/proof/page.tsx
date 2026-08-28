@@ -10,7 +10,7 @@ import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Proof — Arena",
+  title: "Proof — Automata",
   description:
     "Every wallet, every fill, every claim — verifiable on-chain and in the open-source code. Don't trust; check.",
 };
@@ -52,7 +52,7 @@ export default function ProofPage() {
         <h1 className="display text-2xl">Proof</h1>
         <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-ink2">
           A site that custodies money should not ask to be trusted — it should hand over the
-          means to check. Everything Arena claims is verifiable from three primary sources:
+          means to check. Everything Automata claims is verifiable from three primary sources:
           the Solana chain, the open-source code, and this page&apos;s live reconciliation
           between the two.
         </p>
@@ -61,7 +61,7 @@ export default function ProofPage() {
           <div className="section-label mb-3"><span>The code that is running</span></div>
           <div className="card p-5 text-[13px] leading-relaxed text-ink2">
             <p>
-              Arena is fully open source:{" "}
+              Automata is fully open source:{" "}
               <a href={repo} target="_blank" rel="noreferrer" className="text-brand transition-colors hover:brightness-110">
                 {repo.replace("https://", "")} ↗
               </a>

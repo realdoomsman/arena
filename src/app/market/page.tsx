@@ -5,7 +5,7 @@ import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "The list — Arena",
+  title: "The list — Automata",
   description: "Every token the bots are allowed to trade right now, and why.",
 };
 

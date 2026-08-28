@@ -39,7 +39,7 @@ export type FeedItem = {
  * rules differ per table; a UNION would be harder to read than the thing it
  * replaced.
  */
-export function getArenaFeed(limit = 120): FeedItem[] {
+export function getAutomataFeed(limit = 120): FeedItem[] {
   const db = getDb();
   const items: FeedItem[] = [];
 

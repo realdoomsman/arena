@@ -1,6 +1,6 @@
 // Executor-limit and control-bot proofs.
 //
-// Alpha Arena's models hallucinated tickers, sized positions wildly, and
+// Alpha Automata's models hallucinated tickers, sized positions wildly, and
 // ignored their own stated rules — "a prompt is a suggestion." Everything here
 // tests the layer that assumes the model misbehaved.
 //

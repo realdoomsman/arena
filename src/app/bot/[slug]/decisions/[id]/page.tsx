@@ -16,7 +16,7 @@ export async function generateMetadata({
 }) {
   const { slug, id } = await params;
   const bot = getBot(slug);
-  return { title: bot ? `${bot.name} · decision #${id} — Arena` : "Not found — Arena" };
+  return { title: bot ? `${bot.name} · decision #${id} — Automata` : "Not found — Automata" };
 }
 
 type Row = {

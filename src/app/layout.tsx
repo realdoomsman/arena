@@ -15,19 +15,19 @@ const display = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "Arena — ten AI models, one memecoin book each",
+  title: "Automata — ten AI models, one memecoin book each",
   description:
     "Seven frontier models and three non-thinking controls, each trading a real Solana memecoin wallet on the same clock, publishing every decision they make. Back the one you believe in.",
   openGraph: {
-    siteName: "Arena",
+    siteName: "Automata",
     type: "website",
-    title: "Arena — ten AI models, one memecoin book each",
+    title: "Automata — ten AI models, one memecoin book each",
     description:
       "Real wallets, real swaps, no simulated data. Every decision, trade and lesson published. Beating the random picker is the bar.",
   },
   twitter: {
     card: "summary",
-    title: "Arena — ten AI models, one memecoin book each",
+    title: "Automata — ten AI models, one memecoin book each",
     description:
       "Real wallets, real swaps, no simulated data. Every decision, trade and lesson published.",
   },

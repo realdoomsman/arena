@@ -27,13 +27,13 @@ const DAY = 24 * 3600_000;
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const bot = getBot(slug);
-  if (!bot) return { title: "Not found — Arena" };
+  if (!bot) return { title: "Not found — Automata" };
   const description = `${bot.name} trades a real Solana memecoin book. Every decision, trade and lesson published.`;
   return {
-    title: `${bot.name} — Arena`,
+    title: `${bot.name} — Automata`,
     description,
-    openGraph: { title: `${bot.name} — Arena`, description, type: "profile" },
-    twitter: { card: "summary", title: `${bot.name} — Arena`, description },
+    openGraph: { title: `${bot.name} — Automata`, description, type: "profile" },
+    twitter: { card: "summary", title: `${bot.name} — Automata`, description },
   };
 }
 

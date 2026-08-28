@@ -6,7 +6,7 @@
 // under FinCEN's 2019 CVC guidance, non-custodial software that never controls
 // user funds is not a money transmitter.
 //
-// Fees: Arena takes NO platform fee on bot swaps. The house earns creator-fee
+// Fees: Automata takes NO platform fee on bot swaps. The house earns creator-fee
 // revenue elsewhere and injects it into bot wallets (see bot-funding.ts) —
 // skimming trades would make every bot's published return quietly worse than
 // its real one, which is the opposite of what a leaderboard is for.

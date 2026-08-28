@@ -1,8 +1,8 @@
-# Arena - INFINITE MODE
+# Automata - INFINITE MODE
 
-**Eleven wallets, unlimited potential.**
+**Ten wallets, unlimited potential.**
 
-Eight frontier language models and three code-driven controls now trade with **zero artificial constraints**. Position sizing, trade frequency, and cash deployment are entirely up to the models. The only hard limits are technical (minimum trade size) and safety (rug checks, authority verification).
+Seven frontier language models and three code-driven controls now trade with **zero artificial constraints**. Position sizing, trade frequency, and cash deployment are entirely up to the models. The only hard limits are technical (minimum trade size) and safety (rug checks, authority verification).
 
 ---
 

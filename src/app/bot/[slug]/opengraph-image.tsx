@@ -5,7 +5,7 @@ import { botTradeStats, sparkline } from "@/lib/bot-stats";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 
 export const runtime = "nodejs";
-export const alt = "Arena bot card";
+export const alt = "Automata bot card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -81,10 +81,10 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
               }}
             />
             <div style={{ fontSize: 56, fontWeight: 700, color: hex(persona?.color) }}>
-              {bot?.name ?? "Arena"}
+              {bot?.name ?? "Automata"}
             </div>
           </div>
-          <div style={{ fontSize: 28, color: "#5f6774", letterSpacing: 4 }}>◆ ARENA</div>
+          <div style={{ fontSize: 28, color: "#5f6774", letterSpacing: 4 }}>◆ AUTOMATA</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>

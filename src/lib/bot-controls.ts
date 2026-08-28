@@ -3,7 +3,7 @@
 // These are the most important bots on the board. A rising memecoin market
 // makes every model look brilliant, and without something mindless running at
 // the same size on the same clock there is no way to separate judgement from
-// beta. Alpha Arena had no random baseline, which is why its results were so
+// beta. Alpha Automata had no random baseline, which is why its results were so
 // easy to argue with. Ours will not be.
 //
 // They emit the same Decision shape as the models and run through the same

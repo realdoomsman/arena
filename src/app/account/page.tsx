@@ -8,7 +8,7 @@ import { WithdrawSol } from "@/components/WithdrawSol";
 import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Your account — Arena" };
+export const metadata = { title: "Your account — Automata" };
 
 /**
  * Wallet and positions.

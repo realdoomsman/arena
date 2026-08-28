@@ -1,8 +1,8 @@
 import { Scroller } from "@/components/Scroller";
 
 export const metadata = {
-  title: "Privacy — Arena",
-  description: "What Arena stores, what it never collects, and what is public by design.",
+  title: "Privacy — Automata",
+  description: "What Automata stores, what it never collects, and what is public by design.",
 };
 
 /**
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="display text-2xl">Privacy</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink2">
-          Arena stores as little about you as a custodial product can. Every claim below is
+          Automata stores as little about you as a custodial product can. Every claim below is
           checkable against the{" "}
           <a
             href="https://github.com/realdoomsman/arena"
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           <div className="section-label mb-3"><span>What is public by nature</span></div>
           <p className="card p-5 text-[13px] leading-relaxed text-ink2">
             Wallet addresses and every transaction they make are public on the Solana
-            blockchain — that is what makes Arena verifiable, and it cannot be undone. Your
+            blockchain — that is what makes Automata verifiable, and it cannot be undone. Your
             email is never linked publicly to your wallet by us. To close your account,
             withdraw your funds and email{" "}
             <span className="text-ink">realdoomsalt@gmail.com</span> from your account address —

@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: { params: Promise<{ mint: str
   const live = (await buildEligibleList().catch(() => [])).find((t) => t.mint === mint);
   const name = live?.symbol ?? row?.symbol ?? `${mint.slice(0, 4)}…${mint.slice(-4)}`;
   return {
-    title: `${name} — Arena`,
-    description: `Every bot position, fill and decision Arena has on ${name}, with on-chain receipts.`,
+    title: `${name} — Automata`,
+    description: `Every bot position, fill and decision Automata has on ${name}, with on-chain receipts.`,
   };
 }
 

@@ -9,7 +9,7 @@ import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Compare — Arena",
+  title: "Compare — Automata",
   description: "Any bots, one chart, same clock. Monkey is the bar.",
 };
 

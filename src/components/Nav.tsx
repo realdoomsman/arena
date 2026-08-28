@@ -11,7 +11,7 @@ export async function Nav() {
           href="/"
           className="shrink-0 font-mono text-[0.8rem] font-semibold tracking-tight transition-colors hover:text-brand-light"
         >
-          <span className="text-brand">◆</span> ARENA
+          <span className="text-brand">◆</span> AUTOMATA
         </Link>
         {/* Scrolls rather than wraps on a phone — one clean line always. */}
         <div className="flex flex-1 items-center justify-end gap-4 overflow-x-auto whitespace-nowrap font-mono text-[0.66rem] uppercase tracking-[0.1em] text-ink3 sm:gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_a]:shrink-0 [&_button]:shrink-0">

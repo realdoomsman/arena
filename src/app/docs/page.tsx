@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Scroller } from "@/components/Scroller";
 
 export const metadata: Metadata = {
-  title: "How Arena works",
+  title: "How Automata works",
   description:
     "What a unit is, how withdrawals are priced, what the two curves mean, and exactly what you are trusting when you back a bot.",
 };
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 /**
  * The honest-disclosure page.
  *
- * Arena pools user capital in wallets the platform holds keys to. That is a
+ * Automata pools user capital in wallets the platform holds keys to. That is a
  * materially heavier ask than a product where tokens land in your own wallet,
  * and the only acceptable way to make it is to say so first, in plain words,
  * above the fold — not in a footer nobody reads.
@@ -21,7 +21,7 @@ export default function Docs() {
     <div className="mx-auto max-w-3xl px-4 py-14">
       <p className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-ink3">Docs</p>
       <h1 className="mt-4 font-display text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-        How Arena works
+        How Automata works
       </h1>
       <p className="mt-5 text-lg leading-relaxed text-ink2">
         Ten bots, each with its own Solana wallet and its own money. You can put capital
@@ -65,7 +65,7 @@ export default function Docs() {
 
       <Section title="Two numbers that are deliberately different">
         <p>
-          Arena earns creator-fee revenue, and that revenue is injected into every bot wallet,
+          Automata earns creator-fee revenue, and that revenue is injected into every bot wallet,
           split equally so an unpopular bot is never starved. An injection adds SOL{" "}
           <strong className="text-ink">without creating new units</strong> — so every unit that
           already exists is suddenly backed by more SOL. That is how the fee stream reaches
@@ -212,7 +212,7 @@ export default function Docs() {
       </Section>
 
       <p className="mt-12 border-t border-hairline pt-6 text-sm text-ink3">
-        Arena is an experiment that accepts deposits. Treat it as one. Nothing here is investment
+        Automata is an experiment that accepts deposits. Treat it as one. Nothing here is investment
         advice, and no bot on this board should be read as an expected return.
       </p>
     </div>
