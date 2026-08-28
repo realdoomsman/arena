@@ -4,6 +4,10 @@ import { getUser } from "@/lib/auth";
 import { getAccountWallet, getSolBalance, LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { myPositions } from "@/lib/bot-invest";
 import { getBot, getBotNav } from "@/lib/bot-nav";
+import { getPrices } from "@/lib/prices";
+import { SOL_MINT } from "@/lib/wallets";
+import { personaFor } from "@/lib/bot-persona";
+import { Avatar } from "@/components/Avatar";
 import { WithdrawSol } from "@/components/WithdrawSol";
 import { Scroller } from "@/components/Scroller";
 
@@ -25,6 +29,17 @@ export default async function AccountPage() {
   const wallet = getAccountWallet(user.id);
   const sol = wallet ? (await getSolBalance(wallet.address)) / LAMPORTS_PER_SOL : 0;
   const positions = myPositions(user.id);
+
+  // SOL/USD so every SOL figure can show its dollar equivalent, matching the
+  // bot page. A failed price fetch degrades to SOL-only — never a fake dollar.
+  const solPriceMap = await getPrices([SOL_MINT]).catch(
+    () => ({}) as Record<string, { usdPrice: number }>
+  );
+  const solUsd = solPriceMap[SOL_MINT]?.usdPrice ?? null;
+  const usd = (s: number): string | null =>
+    solUsd == null
+      ? null
+      : `$${(s * solUsd).toLocaleString("en-US", { maximumFractionDigits: s * solUsd < 1000 ? 2 : 0 })}`;
 
   const valued = await Promise.all(
     positions.map(async (p) => {
@@ -51,6 +66,7 @@ export default async function AccountPage() {
             <p className="display text-3xl num">
               {sol.toFixed(4)} <span className="text-base text-ink3">SOL</span>
             </p>
+            {usd(sol) && <p className="th mt-1 text-ink3">{usd(sol)}</p>}
             {wallet && (
               <a
                 href={`https://solscan.io/account/${wallet.address}`}
@@ -91,30 +107,44 @@ export default async function AccountPage() {
                 key={p.slug}
                 className="flex flex-wrap items-baseline justify-between gap-3 px-5 py-4 table-row-hover"
               >
-                <div>
-                  <Link
-                    href={`/bot/${p.slug}`}
-                    className="font-display font-semibold transition-colors hover:text-brand"
-                  >
-                    {p.name}
-                  </Link>
-                  <p className="font-mono text-[0.65rem] text-ink3">
-                    {p.sharePct.toFixed(2)}% of the book · cost{" "}
-                    {(p.cost / LAMPORTS_PER_SOL).toFixed(4)} SOL
-                  </p>
+                <div className="flex items-center gap-3">
+                  <Avatar slug={p.slug} name={p.name} color={personaFor(p.slug).color} size={30} />
+                  <div>
+                    <Link
+                      href={`/bot/${p.slug}`}
+                      className="font-display font-semibold transition-colors hover:text-brand"
+                    >
+                      {p.name}
+                    </Link>
+                    <p className="font-mono text-[0.65rem] text-ink3">
+                      {p.sharePct.toFixed(2)}% of pool · cost{" "}
+                      {(p.cost / LAMPORTS_PER_SOL).toFixed(4)} SOL
+                      {usd(p.cost / LAMPORTS_PER_SOL) && ` · ${usd(p.cost / LAMPORTS_PER_SOL)}`}
+                    </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-sm tabular-nums">
-                    {p.valueLamports === null
-                      ? "value unknown"
-                      : `${(p.valueLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL`}
+                    {p.valueLamports === null ? (
+                      <span className="text-ink3">—</span>
+                    ) : (
+                      `${(p.valueLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL`
+                    )}
                   </p>
+                  {p.valueLamports === null ? (
+                    <p className="th text-ink3">can&apos;t price a held token right now</p>
+                  ) : (
+                    usd(p.valueLamports / LAMPORTS_PER_SOL) && (
+                      <p className="th text-ink3">{usd(p.valueLamports / LAMPORTS_PER_SOL)}</p>
+                    )
+                  )}
                   {p.valueLamports !== null && p.cost > 0 && (
                     <p
                       className={`font-mono text-[0.65rem] tabular-nums ${
                         p.valueLamports >= p.cost ? "text-good" : "text-bad"
                       }`}
                     >
+                      {p.valueLamports >= p.cost ? "+" : ""}
                       {((p.valueLamports / p.cost - 1) * 100).toFixed(1)}%
                     </p>
                   )}

@@ -130,14 +130,14 @@ export default async function DecisionPage({
                       ← earlier
                     </Link>
                   ) : (
-                    <span className="text-ink4">← earlier</span>
+                    <span className="text-ink3/60">← earlier</span>
                   )}
                   {next ? (
                     <Link href={`/bot/${bot.slug}/decisions/${next.id}`} className="text-ink3 hover:text-brand">
                       later →
                     </Link>
                   ) : (
-                    <span className="text-ink4">later →</span>
+                    <span className="text-ink3/60">later →</span>
                   )}
                 </>
               );

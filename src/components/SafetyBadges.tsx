@@ -58,7 +58,7 @@ export function SafetyBadges({ safety }: { safety: SafetyDetail }) {
     <div className="mt-4">
       <div className="section-label mb-2">
         <span>Safety</span>
-        <span className="text-ink4 normal-case tracking-normal">
+        <span className="text-ink3 normal-case tracking-normal">
           the same RugCheck screen every buy passes
         </span>
       </div>

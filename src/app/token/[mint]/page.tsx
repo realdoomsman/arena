@@ -6,6 +6,8 @@ import { personaFor } from "@/lib/bot-persona";
 import { isValidAddress } from "@/lib/custody";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { tokenSafety } from "@/lib/bot-universe";
+import { getPrices } from "@/lib/prices";
+import { SOL_MINT } from "@/lib/wallets";
 import { Avatar } from "@/components/Avatar";
 import { PriceChart } from "@/components/PriceChart";
 import { SafetyBadges } from "@/components/SafetyBadges";
@@ -44,6 +46,18 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
 
   const list = await buildEligibleList().catch(() => []);
   const row = list.find((t) => t.mint === mint);
+
+  // SOL/USD so SOL figures show a dollar equivalent, and (with the token's live
+  // price) each holder's unrealized P&L — shown only when a real price exists.
+  const solPriceMap = await getPrices([SOL_MINT]).catch(
+    () => ({}) as Record<string, { usdPrice: number }>
+  );
+  const solUsd = solPriceMap[SOL_MINT]?.usdPrice ?? null;
+  const usd = (s: number): string | null =>
+    solUsd == null
+      ? null
+      : `$${(s * solUsd).toLocaleString("en-US", { maximumFractionDigits: s * solUsd < 1000 ? 2 : 0 })}`;
+  const tokenPriceUsd = row?.priceUsd ?? null;
 
   const holders = db
     .prepare(
@@ -107,7 +121,7 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
             solscan ↗
           </a>
         </div>
-        <p className="num mt-1 break-all text-[0.68rem] text-ink4">{mint}</p>
+        <p className="num mt-1 break-all text-[0.68rem] text-ink3">{mint}</p>
 
         {row ? (
           <div className="card mt-4 overflow-x-auto">
@@ -171,20 +185,35 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
             <p className="text-[13px] text-ink3">No bot currently holds it.</p>
           ) : (
             <ul className="card divide-y divide-hairline">
-              {holders.map((h) => (
-                <li key={h.slug}>
-                  <Link
-                    href={`/bot/${h.slug}`}
-                    className="flex items-center gap-3 px-4 py-2.5 table-row-hover"
-                  >
-                    <Avatar slug={h.slug} name={h.name} color={personaFor(h.slug).color} size={24} />
-                    <span className="text-[13px] font-semibold text-ink">{h.name}</span>
-                    <span className="num ml-auto text-[13px] text-ink2">
-                      {h.qty.toPrecision(6)} · cost {(h.cost_lamports / LAMPORTS_PER_SOL).toFixed(3)}◎
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {holders.map((h) => {
+                const costSol = h.cost_lamports / LAMPORTS_PER_SOL;
+                const valueSol =
+                  tokenPriceUsd != null && solUsd != null ? (h.qty * tokenPriceUsd) / solUsd : null;
+                const pnlPct = valueSol !== null && costSol > 0 ? valueSol / costSol - 1 : null;
+                return (
+                  <li key={h.slug}>
+                    <Link
+                      href={`/bot/${h.slug}`}
+                      className="flex items-center gap-3 px-4 py-2.5 table-row-hover"
+                    >
+                      <Avatar slug={h.slug} name={h.name} color={personaFor(h.slug).color} size={24} />
+                      <span className="text-[13px] font-semibold text-ink">{h.name}</span>
+                      <span className="num ml-auto flex items-baseline gap-3 text-[13px]">
+                        <span className="text-ink2">
+                          {h.qty.toPrecision(4)} · cost {costSol.toFixed(3)}◎
+                          {usd(costSol) && <span className="text-ink3"> · {usd(costSol)}</span>}
+                        </span>
+                        {pnlPct !== null && (
+                          <span className={pnlPct >= 0 ? "text-good" : "text-bad"}>
+                            {pnlPct >= 0 ? "+" : ""}
+                            {(pnlPct * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -192,7 +221,7 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
         <section className="mt-8 pb-12">
           <div className="section-label mb-3">
             <span>Every arena fill</span>
-            <span className="text-ink4 normal-case tracking-normal">
+            <span className="text-ink3 normal-case tracking-normal">
               each links to the decision behind it
             </span>
           </div>
@@ -211,6 +240,9 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
                   </span>
                   <span className="num text-[13px] text-ink2">
                     {(f.lamports / LAMPORTS_PER_SOL).toFixed(3)}◎
+                    {usd(f.lamports / LAMPORTS_PER_SOL) && (
+                      <span className="text-ink3"> · {usd(f.lamports / LAMPORTS_PER_SOL)}</span>
+                    )}
                   </span>
                   <span className="th">{new Date(f.ts).toISOString().slice(0, 16).replace("T", " ")}</span>
                   <span className="ml-auto flex items-center gap-3">

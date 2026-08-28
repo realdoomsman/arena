@@ -96,7 +96,7 @@ export default function ProofPage() {
         <section className="mt-8">
           <div className="section-label mb-3">
             <span>Every wallet, on-chain</span>
-            <span className="text-ink4 normal-case tracking-normal">balances answer to Solana, not to this database</span>
+            <span className="text-ink3 normal-case tracking-normal">balances answer to Solana, not to this database</span>
           </div>
           <ul className="card divide-y divide-hairline">
             {treasury && (
@@ -134,7 +134,7 @@ export default function ProofPage() {
         <section className="mt-8">
           <div className="section-label mb-3">
             <span>Proof of liabilities</span>
-            <span className="text-ink4 normal-case tracking-normal">
+            <span className="text-ink3 normal-case tracking-normal">
               what is owed to backers — compare to each wallet above
             </span>
           </div>

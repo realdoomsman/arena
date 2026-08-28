@@ -248,9 +248,9 @@ function Section({
 }) {
   return (
     <section className="mt-7">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-5 border-b border-hairline-2 pb-1.5">
-        <h2 className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-ink2">{title}</h2>
-        {note && <p className="font-mono text-[0.6rem] text-ink3">{note}</p>}
+      <div className="section-label">
+        <span>{title}</span>
+        {note && <span className="text-ink3 normal-case tracking-normal">{note}</span>}
       </div>
       <ul className="card card-glass mt-2 divide-y divide-hairline overflow-hidden">
         {children}
@@ -265,13 +265,11 @@ function Row({ check }: { check: Check }) {
     <li className="flex items-baseline gap-3 px-4 py-2">
       <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
       <span className="w-36 shrink-0 font-mono text-[0.72rem] text-ink">{check.label}</span>
-      <span className="flex-1 font-mono text-[0.68rem] leading-relaxed text-ink3">
+      <span className="flex-1 font-mono text-[0.72rem] leading-relaxed text-ink2">
         {check.detail}
       </span>
       {check.ok === false && check.blocking && (
-        <span className="shrink-0 font-mono text-[0.58rem] uppercase tracking-[0.1em] text-bad">
-          blocking
-        </span>
+        <span className="badge badge-danger shrink-0">blocking</span>
       )}
     </li>
   );

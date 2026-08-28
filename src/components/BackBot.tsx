@@ -119,7 +119,7 @@ export function BackBot({
           type="button"
           disabled={busy}
           onClick={() => post("invest", { sol: Number(sol) })}
-          className="btn-primary rounded-xl px-5 py-2 font-display text-sm tracking-tight disabled:opacity-50"
+          className="btn-primary px-5 py-2 font-display text-sm tracking-tight disabled:opacity-50"
         >
           {busy ? "Working…" : `Back ${botName}`}
         </button>
@@ -130,7 +130,7 @@ export function BackBot({
               type="button"
               disabled={busy}
               onClick={() => post("withdraw", { fraction: 0.5 })}
-              className="btn-secondary rounded-xl px-4 py-2 font-mono text-xs disabled:opacity-50"
+              className="btn-secondary px-4 py-2 font-mono text-xs disabled:opacity-50"
             >
               take out half
             </button>
@@ -138,7 +138,7 @@ export function BackBot({
               type="button"
               disabled={busy}
               onClick={() => post("withdraw", { fraction: 1 })}
-              className="btn-secondary rounded-xl px-4 py-2 font-mono text-xs disabled:opacity-50"
+              className="btn-secondary px-4 py-2 font-mono text-xs disabled:opacity-50"
             >
               exit fully
             </button>

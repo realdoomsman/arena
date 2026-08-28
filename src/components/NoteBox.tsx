@@ -104,7 +104,7 @@ export function NoteBox({
         <button
           type="submit"
           disabled={busy || text.trim().length < 8}
-          className="btn-primary rounded-xl px-4 py-2 font-display text-sm tracking-tight disabled:opacity-50"
+          className="btn-primary px-4 py-2 font-display text-sm tracking-tight disabled:opacity-50"
         >
           {busy ? "Screening…" : `Send to ${botName}`}
         </button>

@@ -64,7 +64,7 @@ export function WithdrawSol({ balance }: { balance: number }) {
       <button
         type="submit"
         disabled={busy || balance <= 0}
-        className="btn-secondary rounded-lg px-3 py-1.5 font-mono text-xs disabled:opacity-40"
+        className="btn-secondary px-3 py-1.5 font-mono text-xs disabled:opacity-40"
       >
         {busy ? "sending…" : "withdraw"}
       </button>

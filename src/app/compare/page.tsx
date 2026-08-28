@@ -167,7 +167,10 @@ export default async function ComparePage({
             })}
           </div>
         </div>
-        <p className="th mt-1">30-day trading curves, each normalized to 1.0 at window start · monkey is the bar</p>
+        <div className="section-label mt-6 mb-3">
+          <span>The curves</span>
+          <span className="text-ink3 normal-case tracking-normal">30-day, normalized to 1.0 at start · monkey is the bar</span>
+        </div>
 
         <div className="card mt-4 p-4">
           {chart ?? (
@@ -186,7 +189,11 @@ export default async function ComparePage({
           </div>
         </div>
 
-        <div className="card mt-6 overflow-x-auto">
+        <div className="section-label mt-8 mb-3">
+          <span>Head to head</span>
+        </div>
+
+        <div className="card mt-4 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-[13px]">
             <thead>
               <tr className="border-b border-hairline bg-card2">

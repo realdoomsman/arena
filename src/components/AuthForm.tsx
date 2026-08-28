@@ -56,7 +56,7 @@ export function AuthForm({ googleEnabled = false }: { googleEnabled?: boolean })
         <>
           <a
             href="/api/auth/google"
-            className="btn-secondary flex items-center justify-center gap-2.5 rounded-lg px-4 py-2.5 text-sm font-medium"
+            className="btn-secondary flex items-center justify-center gap-2.5 px-4 py-2.5 text-sm font-medium"
           >
             <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -109,13 +109,13 @@ export function AuthForm({ googleEnabled = false }: { googleEnabled?: boolean })
       )}
 
       {error && (
-        <p className="rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
+        <p role="alert" className="rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
       )}
 
       <button
         type="submit"
         disabled={busy || (mode === "register" && !agree)}
-        className="btn-primary mt-2 rounded-xl px-4 py-2.5 font-display text-sm tracking-tight disabled:opacity-50"
+        className="btn-primary mt-2 px-4 py-2.5 font-display text-sm tracking-tight disabled:opacity-50"
       >
         {busy ? "Working…" : mode === "login" ? "Sign in" : "Create account"}
       </button>
