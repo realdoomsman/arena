@@ -23,6 +23,7 @@ const confirm = process.argv.includes("--confirm");
 const sol = (l: number) => (l / LAMPORTS_PER_SOL).toFixed(4);
 
 async function main() {
+  const startTs = Date.now();
   const db = getDb();
   const houseId = getSystemUserId();
   const targets = listBots(true).filter((b) => totalUnits(b.id) === 0);
@@ -79,6 +80,19 @@ async function main() {
       }
       console.log(`     FAILED: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  // Pre-launch crashed wakes (started before this adoption, never finished) are
+  // testing artifacts: their wallets are captured by the adoption above, so mark
+  // them reconciled rather than leaving them flagged on /status forever.
+  if (confirm) {
+    const cw = db
+      .prepare(
+        `UPDATE bot_wakes SET error = 'pre-launch crash — reconciled at genesis adoption'
+         WHERE decision_id IS NULL AND error IS NULL AND ran_at < ?`
+      )
+      .run(startTs);
+    if (cw.changes) console.log(`Cleared ${cw.changes} stale pre-launch crashed wake(s).`);
   }
 
   if (!confirm) {

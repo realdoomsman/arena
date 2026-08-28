@@ -77,13 +77,18 @@ export default async function StatusPage() {
       blocking: true,
     },
     {
+      // The treasury only needs a balance to SEED bots or pay fee-claim gas.
+      // When every bot is already funded (e.g. funded directly, then adopted
+      // into the ledger), an empty treasury is fine — so this never blocks.
       label: "treasury balance",
-      ok: balance >= needed ? true : balance > 0 ? null : false,
+      ok: balance >= needed || funded >= bots.length ? true : balance > 0 ? true : null,
       detail:
-        balance >= needed
-          ? `${sol(balance)} SOL — enough to seed all ${bots.length}`
-          : `${sol(balance)} SOL — need ${sol(needed)} to seed every bot`,
-      blocking: true,
+        funded >= bots.length
+          ? `${sol(balance)} SOL — bots already funded; treasury only needs SOL to seed NEW bots or top up fee-claim gas`
+          : balance >= needed
+            ? `${sol(balance)} SOL — enough to seed all ${bots.length}`
+            : `${sol(balance)} SOL — send SOL here only to seed bots from the treasury`,
+      blocking: false,
     },
     {
       label: "bots funded",

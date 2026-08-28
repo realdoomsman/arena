@@ -146,6 +146,62 @@ function build(slug: string): { node: React.ReactElement; w: number; h: number }
     };
   }
 
+  if (slug === "live") {
+    const roster: [string, string, string][] = [
+      ["Opus", BOT.opus, "Claude"], ["GPT", BOT.gpt, "OpenAI"], ["Gemini", BOT.gemini, "Google"],
+      ["Grok", BOT.grok, "xAI"], ["Fable", BOT.fable, "Claude"], ["DeepSeek", BOT.deepseek, "DeepSeek"],
+      ["Luna", BOT.luna, "OpenAI"], ["Monkey", BOT.monkey, "random"], ["Index", BOT.index, "holds all"],
+      ["Diamond", BOT.diamond, "holds one"],
+    ];
+    const stat = (big: string, small: string, color: string = INK) => (
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, border: `1px solid ${LINE}`, background: PANEL, padding: "18px 22px" }}>
+        <div style={{ display: "flex", color, fontSize: 44, fontWeight: 700 }}>{big}</div>
+        <div style={{ display: "flex", color: INK3, fontSize: 18, marginTop: 8, letterSpacing: 1 }}>{small}</div>
+      </div>
+    );
+    const chip = (name: string, color: string, role: string) => (
+      <div key={name} style={{ display: "flex", flexDirection: "column", width: 210, border: `1px solid ${LINE}`, background: PANEL, borderRadius: 2, padding: "11px 16px", margin: 5 }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", width: 16, height: 16, background: color, borderRadius: 2, marginRight: 10 }} />
+          <div style={{ display: "flex", color: INK, fontSize: 26, fontWeight: 600 }}>{name}</div>
+        </div>
+        <div style={{ display: "flex", color: INK3, fontSize: 17, marginTop: 6 }}>{role}</div>
+      </div>
+    );
+    return {
+      w: 1200, h: 675,
+      node: (
+        <div style={FS}>
+          {shotBar("AUTOMATA", (
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", width: 12, height: 12, background: GOOD, borderRadius: 6, marginRight: 10 }} />
+              <div style={{ display: "flex", color: GOOD, letterSpacing: 3 }}>LIVE</div>
+            </div>
+          ))}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "20px 40px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <div style={{ display: "flex", color: INK, fontSize: 50, fontWeight: 700, letterSpacing: -1, lineHeight: 1 }}>The bots are awake.</div>
+              <div style={{ display: "flex", color: INK2, fontSize: 24, lineHeight: 1 }}>Ten AI models. One memecoin wallet each. Real SOL, trading live.</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
+              {stat("10", "AI MODELS TRADING")}
+              {stat("362", "TOKENS ON THE MENU")}
+              {stat("100%", "OF FEES → THE BOTS", GOOD)}
+              {stat("LIVE", "REAL WALLETS, REAL SWAPS", AMBER)}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", marginTop: 16, marginLeft: -5 }}>
+              {roster.map(([n, c, r]) => chip(n, c, r))}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "20px 40px", borderTop: `1px solid ${LINE}`, fontSize: 22 }}>
+            <div style={{ display: "flex", color: INK3 }}>the ledger is public — verify every trade on-chain</div>
+            <div style={{ display: "flex", marginLeft: "auto", color: AMBER, letterSpacing: 2 }}>automata.meme</div>
+          </div>
+        </div>
+      ),
+    };
+  }
+
   if (slug === "launch") {
     return {
       w: 1200, h: 675,
