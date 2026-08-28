@@ -215,11 +215,11 @@ const SOURCES: { path: string }[] = [
 // GeckoTerminal sees pools Jupiter's token feeds do not surface yet — fresh
 // Raydium/Meteora listings and DEX-trending names. Keyless, 30 req/min; four
 // calls per 5-minute rebuild is well inside it. Verified 2026-08.
+// One page each: page 2 overlapped heavily, and every background call here
+// spends burst budget the token-page charts need from the same IP.
 const GECKO_SOURCES: string[] = [
   "networks/solana/trending_pools?include=base_token&page=1",
-  "networks/solana/trending_pools?include=base_token&page=2",
   "networks/solana/new_pools?include=base_token&page=1",
-  "networks/solana/new_pools?include=base_token&page=2",
 ];
 
 type GeckoPool = {

@@ -399,20 +399,33 @@ declare global {
   var __mbOhlcvCache: Map<string, { ts: number; data: PricePoint[] | null }> | undefined;
 }
 const ohlcvCache = (globalThis.__mbOhlcvCache ??= new Map());
-const OHLCV_TTL = 5 * 60_000;
+/** Hourly candles don't move in minutes; a long success TTL spends the shared
+ *  rate budget on tokens not yet charted instead of refreshing ones that are. */
+const OHLCV_HIT_TTL = 15 * 60_000;
+const OHLCV_MISS_TTL = 5 * 60_000;
 
 export async function getTokenOhlcv(mint: string): Promise<PricePoint[] | null> {
   const hit = ohlcvCache.get(mint);
-  if (hit && Date.now() - hit.ts < OHLCV_TTL) return hit.data;
+  if (hit && Date.now() - hit.ts < (hit.data ? OHLCV_HIT_TTL : OHLCV_MISS_TTL)) return hit.data;
 
+  // GeckoTerminal's free tier enforces a BURST limit as well as 30/min, and a
+  // page render often lands right after a universe rebuild burned four calls.
+  // One short-fused retry absorbs the burst 429 without meaningfully delaying
+  // the page; a sustained 429 still falls through to the cached miss.
   const fetchJson = async (path: string) => {
-    const res = await fetch(`https://api.geckoterminal.com/api/v2/${path}`, {
-      signal: AbortSignal.timeout(10_000),
-      cache: "no-store",
-      headers: { accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`geckoterminal ${res.status}`);
-    return res.json();
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(`https://api.geckoterminal.com/api/v2/${path}`, {
+        signal: AbortSignal.timeout(10_000),
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+      if (res.ok) return res.json();
+      if (res.status === 429 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(`geckoterminal ${res.status}`);
+    }
   };
 
   try {
@@ -433,7 +446,10 @@ export async function getTokenOhlcv(mint: string): Promise<PricePoint[] | null> 
     const data = points.length >= 2 ? points : null;
     ohlcvCache.set(mint, { ts: Date.now(), data });
     return data;
-  } catch {
+  } catch (e) {
+    // Logged, not swallowed: a silently chartless page and a rate-limited
+    // feed look identical without this line.
+    console.warn(`[ohlcv] ${mint.slice(0, 8)}… failed:`, e instanceof Error ? e.message : e);
     // Cache the miss too — a token with no pool would otherwise re-probe on
     // every page view.
     ohlcvCache.set(mint, { ts: Date.now(), data: hit?.data ?? null });
