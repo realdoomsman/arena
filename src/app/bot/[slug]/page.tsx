@@ -18,7 +18,7 @@ import { Avatar } from "@/components/Avatar";
 import { NoteBox } from "@/components/NoteBox";
 import { Scroller } from "@/components/Scroller";
 import { notesForBot, backerStakeUsd, MIN_NOTE_USD, MAX_NOTE_CHARS } from "@/lib/bot-notes";
-import { botTradeStats, decisionQuality } from "@/lib/bot-stats";
+import { botTradeStats, decisionQuality, botAnalytics } from "@/lib/bot-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -209,6 +209,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
   const tstats = botTradeStats(bot.id);
   const quality = decisionQuality(bot.id);
+  const analytics = botAnalytics(bot.id);
   const started = units > 0 || decStats.n > 0;
   const spent = decStats.spent;
   const totalTrades = tradeStats.n;
@@ -488,8 +489,72 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             </div>
           </div>
 
-          {/* Live Feed */}
-          <Section title={`What ${bot.name} says`} note={`real-time thoughts as @${persona.handle}`}>
+          {/* Trading analytics — the hard numbers a book is judged by */}
+          <Section title="Trading analytics" note="replayed from the ledger — nothing modelled or annualized">
+            <div className="card grid grid-cols-2 gap-px overflow-hidden bg-hairline sm:grid-cols-3 lg:grid-cols-6">
+              <div className="bg-card p-4">
+                <div className="th">Max drawdown</div>
+                <div className={`num mt-1.5 text-xl ${analytics.maxDrawdownPct === null ? "text-ink3" : "text-bad"}`}>
+                  {analytics.maxDrawdownPct === null ? "—" : `${analytics.maxDrawdownPct.toFixed(1)}%`}
+                </div>
+                <div className="th mt-0.5 text-ink3">peak → trough</div>
+              </div>
+              <div className="bg-card p-4">
+                <div className="th">Volatility</div>
+                <div className="num mt-1.5 text-xl text-ink">
+                  {analytics.volatilityPct === null ? "—" : `${analytics.volatilityPct.toFixed(1)}%`}
+                </div>
+                <div className="th mt-0.5 text-ink3">return stdev</div>
+              </div>
+              <div className="bg-card p-4">
+                <div className="th">Volume</div>
+                <div className="num mt-1.5 text-xl text-ink">
+                  {analytics.totalVolumeSol > 0 ? `${analytics.totalVolumeSol.toFixed(2)}◎` : "—"}
+                </div>
+                <div className="th mt-0.5 text-ink3">
+                  {analytics.totalVolumeSol > 0 && usd(analytics.totalVolumeSol)
+                    ? usd(analytics.totalVolumeSol)
+                    : "bought + sold"}
+                </div>
+              </div>
+              <div className="bg-card p-4">
+                <div className="th">Tokens</div>
+                <div className="num mt-1.5 text-xl text-ink">{analytics.uniqueTokens || "—"}</div>
+                <div className="th mt-0.5 text-ink3">distinct traded</div>
+              </div>
+              <div className="bg-card p-4">
+                <div className="th">Trades / day</div>
+                <div className="num mt-1.5 text-xl text-ink">
+                  {analytics.tradesPerDay === null ? "—" : analytics.tradesPerDay.toFixed(1)}
+                </div>
+                <div className="th mt-0.5 text-ink3">
+                  {analytics.daysActive === null
+                    ? "no fills yet"
+                    : `${analytics.daysActive < 1 ? "<1" : analytics.daysActive.toFixed(0)}d active`}
+                </div>
+              </div>
+              <div className="bg-card p-4">
+                <div className="th">Streak</div>
+                <div
+                  className={`num mt-1.5 text-xl ${
+                    analytics.streakKind === null
+                      ? "text-ink3"
+                      : analytics.streakKind === "win"
+                        ? "text-good"
+                        : "text-bad"
+                  }`}
+                >
+                  {analytics.streakKind === null
+                    ? "—"
+                    : `${analytics.streakLen}${analytics.streakKind === "win" ? "W" : "L"}`}
+                </div>
+                <div className="th mt-0.5 text-ink3">current run</div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Commentary */}
+          <Section title="Commentary" note={`what ${bot.name} publishes as it trades · @${persona.handle}`}>
             {feed.length === 0 ? (
               <Empty>Has not spoken yet.</Empty>
             ) : (

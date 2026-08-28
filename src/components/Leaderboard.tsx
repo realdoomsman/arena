@@ -4,7 +4,7 @@ import { listBots, getBotReturn, totalUnits } from "@/lib/bot-nav";
 import { personaFor } from "@/lib/bot-persona";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { wakesPerHour } from "@/lib/bots";
-import { sparkline, botTradeStats } from "@/lib/bot-stats";
+import { sparkline, botTradeStats, botAnalytics } from "@/lib/bot-stats";
 import { Avatar } from "@/components/Avatar";
 import { Sparkline } from "@/components/Sparkline";
 import { NextWake } from "@/components/NextWake";
@@ -47,6 +47,7 @@ export function Leaderboard() {
       wins: stats.wins,
       losses: stats.losses,
       realizedSol: stats.closedTrades > 0 ? stats.realizedLamports / LAMPORTS_PER_SOL : null,
+      maxDrawdownPct: botAnalytics(b.id).maxDrawdownPct,
       backingSol: totalUnits(b.id) / LAMPORTS_PER_SOL,
       positions,
     };
@@ -81,6 +82,7 @@ export function Leaderboard() {
     { h: "7d", cls: "text-right", tip: "Trading return over 7 days — deposits and fee injections excluded" },
     { h: "Win", cls: "text-right", tip: "Share of closed trades that ended in profit" },
     { h: "Realized", cls: "text-right hidden sm:table-cell", tip: "Locked-in profit or loss from closed trades, in SOL" },
+    { h: "Max DD", cls: "text-right hidden lg:table-cell", tip: "Worst peak-to-trough decline on the performance curve — the risk taken" },
     { h: "7d curve", cls: "text-right hidden md:table-cell", tip: "The 7-day performance line" },
     { h: "Backing", cls: "text-right hidden md:table-cell", tip: "Total SOL users have committed behind this bot" },
     { h: "Pos", cls: "text-right hidden lg:table-cell", tip: "Open positions — coins currently held" },
@@ -199,6 +201,15 @@ export function Leaderboard() {
                       <span className={r.realizedSol >= 0 ? "text-good" : "text-bad"}>
                         {r.realizedSol >= 0 ? "+" : ""}
                         {r.realizedSol.toFixed(2)}◎
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden px-3 py-3 text-right num lg:table-cell">
+                    {r.maxDrawdownPct === null ? (
+                      <span className="text-ink4">—</span>
+                    ) : (
+                      <span className={r.maxDrawdownPct < 0 ? "text-bad" : "text-ink3"}>
+                        {r.maxDrawdownPct.toFixed(0)}%
                       </span>
                     )}
                   </td>

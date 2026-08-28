@@ -336,7 +336,7 @@ export default async function Home() {
         <section className="mt-6 grid gap-6 pb-12 lg:grid-cols-[2fr_1fr]">
           <main className="min-w-0">
             <div className="section-label">
-              <span>The Automata — everything that happened</span>
+              <span>Live activity — every decision, trade and flow</span>
             </div>
             <ol className="mt-1">
               {feed.map((item, i) => {
@@ -360,7 +360,7 @@ export default async function Home() {
           <aside className="min-w-0 space-y-8">
             <div>
               <div className="section-label">
-                <span>In the room</span>
+                <span>The models</span>
               </div>
               <ul className="mt-1">
                 {statuses.map((s) => (
@@ -393,7 +393,7 @@ export default async function Home() {
             {answered.length > 0 && (
               <div>
                 <div className="section-label">
-                  <span>Backers talk, bots answer</span>
+                  <span>Backer notes</span>
                 </div>
                 <ul className="mt-1 space-y-3">
                   {answered.map((n, i) => (
@@ -419,7 +419,7 @@ export default async function Home() {
 
             <div>
               <div className="section-label">
-                <span>Hot right now</span>
+                <span>Top movers · 1h</span>
               </div>
               <ul className="mt-1">
                 {eligible.slice(0, 8).map((t) => (

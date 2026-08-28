@@ -96,6 +96,122 @@ export function botTradeStats(botId: number): TradeStats {
   };
 }
 
+const LPS = 1_000_000_000;
+
+export type BotAnalytics = {
+  /** Worst peak-to-trough decline on the perf_index curve, as a negative %. */
+  maxDrawdownPct: number | null;
+  /** Stdev of snapshot-over-snapshot returns, % — how choppy the ride is. */
+  volatilityPct: number | null;
+  /** Every SOL that has moved through the book (buys + sells). */
+  totalVolumeSol: number;
+  /** Distinct mints the bot has ever traded. */
+  uniqueTokens: number;
+  /** Days from first fill to last. */
+  daysActive: number | null;
+  /** Fills per active day — how busy the hand is. */
+  tradesPerDay: number | null;
+  /** Trailing run of closed-trade outcomes, and its length. */
+  streakKind: "win" | "loss" | null;
+  streakLen: number;
+};
+
+/**
+ * Hard, verifiable analytics — the numbers a serious trader judges a book by,
+ * all replayed from the same snapshot/fill ledger the Solscan links prove.
+ * Nothing modelled or annualized: raw, honest, and empty where there is no
+ * history to compute from.
+ */
+export function botAnalytics(botId: number): BotAnalytics {
+  const db = getDb();
+  const series = (
+    db.prepare("SELECT perf_index FROM bot_snapshots WHERE bot_id = ? ORDER BY ts, id").all(botId) as {
+      perf_index: number;
+    }[]
+  )
+    .map((s) => s.perf_index)
+    .filter((v) => v > 0);
+
+  let maxDrawdownPct: number | null = null;
+  if (series.length >= 2) {
+    let peak = series[0];
+    let worst = 0;
+    for (const v of series) {
+      if (v > peak) peak = v;
+      const dd = v / peak - 1;
+      if (dd < worst) worst = dd;
+    }
+    maxDrawdownPct = worst * 100;
+  }
+
+  let volatilityPct: number | null = null;
+  if (series.length >= 3) {
+    const rets: number[] = [];
+    for (let i = 1; i < series.length; i++) rets.push(series[i] / series[i - 1] - 1);
+    const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+    const variance = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / rets.length;
+    volatilityPct = Math.sqrt(variance) * 100;
+  }
+
+  const trades = db
+    .prepare("SELECT ts, mint, side, lamports, qty FROM bot_trades WHERE bot_id = ? ORDER BY ts, id")
+    .all(botId) as { ts: number; mint: string; side: string; lamports: number; qty: number }[];
+
+  const totalVolumeSol = trades.reduce((s, t) => s + t.lamports, 0) / LPS;
+  const uniqueTokens = new Set(trades.map((t) => t.mint)).size;
+  let daysActive: number | null = null;
+  let tradesPerDay: number | null = null;
+  if (trades.length >= 1) {
+    const spanDays = Math.max(
+      (trades[trades.length - 1].ts - trades[0].ts) / (24 * 3_600_000),
+      1 / 24
+    );
+    daysActive = spanDays;
+    tradesPerDay = trades.length / spanDays;
+  }
+
+  // Trailing streak of closed-trade outcomes, average-cost replay (same method
+  // as botTradeStats, so wins/losses reconcile).
+  const book = new Map<string, { qty: number; cost: number }>();
+  const outcomes: boolean[] = [];
+  for (const t of trades) {
+    if (t.side === "buy") {
+      const p = book.get(t.mint);
+      if (p) {
+        p.qty += t.qty;
+        p.cost += t.lamports;
+      } else book.set(t.mint, { qty: t.qty, cost: t.lamports });
+      continue;
+    }
+    const p = book.get(t.mint);
+    if (!p || p.qty <= 0) continue;
+    const soldQty = Math.min(t.qty, p.qty);
+    const costOfSold = p.cost * (soldQty / p.qty);
+    outcomes.push(t.lamports - costOfSold >= 0);
+    p.qty -= soldQty;
+    p.cost -= costOfSold;
+    if (p.qty <= 1e-9) book.delete(t.mint);
+  }
+  let streakKind: "win" | "loss" | null = null;
+  let streakLen = 0;
+  if (outcomes.length > 0) {
+    const last = outcomes[outcomes.length - 1];
+    streakKind = last ? "win" : "loss";
+    for (let i = outcomes.length - 1; i >= 0 && outcomes[i] === last; i--) streakLen++;
+  }
+
+  return {
+    maxDrawdownPct,
+    volatilityPct,
+    totalVolumeSol,
+    uniqueTokens,
+    daysActive,
+    tradesPerDay,
+    streakKind,
+    streakLen,
+  };
+}
+
 /** perf_index points for a small inline sparkline, oldest first. */
 export function sparkline(botId: number, days = 7, maxPoints = 40): number[] {
   const since = Date.now() - days * 24 * 3_600_000;
