@@ -17,6 +17,7 @@ import { Avatar } from "@/components/Avatar";
 import { NoteBox } from "@/components/NoteBox";
 import { Scroller } from "@/components/Scroller";
 import { notesForBot, backerStakeUsd, MIN_NOTE_USD, MAX_NOTE_CHARS } from "@/lib/bot-notes";
+import { botTradeStats } from "@/lib/bot-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const bot = getBot(slug);
   if (!bot) return { title: "Not found — Arena" };
+  const description = `${bot.name} trades a real Solana memecoin book. Every decision, trade and lesson published.`;
   return {
     title: `${bot.name} — Arena`,
-    description: `${bot.name} trades a real Solana memecoin book. Every decision, trade and lesson published.`,
+    description,
+    openGraph: { title: `${bot.name} — Arena`, description, type: "profile" },
+    twitter: { card: "summary", title: `${bot.name} — Arena`, description },
   };
 }
 
@@ -204,6 +208,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
     )
     .get(bot.id) as { n: number; buys: number; sells: number };
 
+  const tstats = botTradeStats(bot.id);
   const started = units > 0 || decStats.n > 0;
   const spent = decStats.spent;
   const totalTrades = tradeStats.n;
@@ -397,27 +402,63 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
           </div>
 
           {/* Stats Grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
-            <div className="card card-glass p-6 text-center interactive">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-10">
+            <div className="card card-glass p-5 text-center interactive">
+              <div className="th mb-2">Win Rate</div>
+              <div
+                className={`display text-3xl num ${
+                  tstats.winRate === null ? "" : tstats.winRate >= 0.5 ? "text-good" : "text-bad"
+                }`}
+              >
+                {tstats.winRate === null ? "—" : `${(tstats.winRate * 100).toFixed(0)}%`}
+              </div>
+              <div className="th mt-1">
+                {tstats.closedTrades > 0
+                  ? `${tstats.wins}W · ${tstats.losses}L closed`
+                  : "nothing closed yet"}
+              </div>
+            </div>
+            <div className="card card-glass p-5 text-center interactive">
+              <div className="th mb-2">Realized</div>
+              <div
+                className={`display text-3xl num ${
+                  tstats.closedTrades === 0
+                    ? ""
+                    : tstats.realizedLamports >= 0
+                      ? "text-good"
+                      : "text-bad"
+                }`}
+              >
+                {tstats.closedTrades === 0
+                  ? "—"
+                  : `${tstats.realizedLamports >= 0 ? "+" : ""}${(tstats.realizedLamports / LAMPORTS_PER_SOL).toFixed(2)}◎`}
+              </div>
+              <div className="th mt-1">
+                {tstats.avgHoldHours === null
+                  ? "closed pnl"
+                  : `avg hold ${tstats.avgHoldHours < 24 ? `${tstats.avgHoldHours.toFixed(1)}h` : `${(tstats.avgHoldHours / 24).toFixed(1)}d`}`}
+              </div>
+            </div>
+            <div className="card card-glass p-5 text-center interactive">
               <div className="th mb-2">Decisions</div>
               <div className="display text-3xl num">{decStats.n}</div>
               <div className="th mt-1">lifetime</div>
             </div>
-            <div className="card card-glass p-6 text-center interactive">
+            <div className="card card-glass p-5 text-center interactive">
               <div className="th mb-2">Trades</div>
               <div className="display text-3xl num">{totalTrades}</div>
               <div className="th mt-1">
                 {buys} buy · {sells} sell
               </div>
             </div>
-            <div className="card card-glass p-6 text-center interactive">
+            <div className="card card-glass p-5 text-center interactive">
               <div className="th mb-2">Thought Cost</div>
               <div className="display text-3xl num">
                 {spent > 0 ? `$${spent.toFixed(2)}` : "$0"}
               </div>
               <div className="th mt-1">total spend</div>
             </div>
-            <div className="card card-glass p-6 text-center interactive">
+            <div className="card card-glass p-5 text-center interactive">
               <div className="th mb-2">Avg Latency</div>
               <div className="display text-3xl num">
                 {avgLatency ? `${(avgLatency / 1000).toFixed(2)}s` : "—"}

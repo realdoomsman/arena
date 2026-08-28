@@ -23,9 +23,17 @@ type SortKey =
  * thing a bot actually references and re-numbering it here would make the
  * published list lie.
  */
-export function MarketTable({ list }: { list: EligibleToken[] }) {
+export function MarketTable({
+  list,
+  heldBy = {},
+}: {
+  list: EligibleToken[];
+  /** mint → names of bots currently holding it. */
+  heldBy?: Record<string, string[]>;
+}) {
   const [q, setQ] = useState("");
   const [freshOnly, setFreshOnly] = useState(false);
+  const [heldOnly, setHeldOnly] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "idx", dir: 1 });
 
   const shown = useMemo(() => {
@@ -40,6 +48,7 @@ export function MarketTable({ list }: { list: EligibleToken[] }) {
       );
     }
     if (freshOnly) rows = rows.filter((t) => t.fresh);
+    if (heldOnly) rows = rows.filter((t) => heldBy[t.mint]?.length);
     const { key, dir } = sort;
     return [...rows].sort((a, b) => {
       const av = a[key];
@@ -49,7 +58,7 @@ export function MarketTable({ list }: { list: EligibleToken[] }) {
       if (bv == null) return -1;
       return (av > bv ? 1 : av < bv ? -1 : 0) * dir;
     });
-  }, [list, q, freshOnly, sort]);
+  }, [list, q, freshOnly, heldOnly, heldBy, sort]);
 
   const header = (label: string, key: SortKey, right = true) => {
     const active = sort.key === key;
@@ -95,7 +104,16 @@ export function MarketTable({ list }: { list: EligibleToken[] }) {
             onChange={(e) => setFreshOnly(e.target.checked)}
             className="accent-[var(--brand)]"
           />
-          new launches only
+          new launches
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 th">
+          <input
+            type="checkbox"
+            checked={heldOnly}
+            onChange={(e) => setHeldOnly(e.target.checked)}
+            className="accent-[var(--brand)]"
+          />
+          held by bots
         </label>
         <span className="th num">
           {shown.length === list.length ? `${list.length}` : `${shown.length} of ${list.length}`}
@@ -134,10 +152,15 @@ export function MarketTable({ list }: { list: EligibleToken[] }) {
                     {t.symbol}
                   </a>
                 </td>
-                <td className="max-w-[14rem] truncate px-3 py-2 text-[0.66rem] text-ink3">
+                <td className="max-w-[16rem] truncate px-3 py-2 text-[0.66rem] text-ink3">
                   {t.fresh && <span className="mr-1.5 text-warn">NEW</span>}
                   {t.name}
                   {t.launchpad && <span className="ml-1.5">· {t.launchpad}</span>}
+                  {heldBy[t.mint]?.length ? (
+                    <span className="ml-1.5 text-brand" title={`held by ${heldBy[t.mint].join(", ")}`}>
+                      ◆ {heldBy[t.mint].length === 1 ? heldBy[t.mint][0] : `${heldBy[t.mint].length} bots`}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-3 py-2 text-right num text-[0.72rem] text-ink2">
                   ${t.priceUsd.toPrecision(4)}

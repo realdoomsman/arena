@@ -9,6 +9,7 @@ import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { Avatar } from "@/components/Avatar";
 import { LiveTick } from "@/components/LiveTick";
 import { Leaderboard } from "@/components/Leaderboard";
+import { TradeTicker } from "@/components/TradeTicker";
 import { Scroller } from "@/components/Scroller";
 import { getDb } from "@/lib/db";
 
@@ -223,6 +224,7 @@ export default async function Home() {
 
   return (
     <Scroller>
+    <TradeTicker />
     <div className="min-h-full bg-page-deep relative">
       {/* Animated background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">

@@ -1,4 +1,5 @@
 import { buildEligibleList, type EligibleToken } from "@/lib/bot-universe";
+import { getDb } from "@/lib/db";
 import { MarketTable } from "@/components/MarketTable";
 import { Scroller } from "@/components/Scroller";
 
@@ -27,6 +28,16 @@ export default async function MarketPage() {
   }
 
   const totalLiq = list.reduce((a, t) => a + t.liquidityUsd, 0);
+
+  // Which bots hold what, so the list shows where the arena's own money sits.
+  const heldRows = getDb()
+    .prepare(
+      `SELECT h.mint, b.name FROM bot_holdings h JOIN bots b ON b.id = h.bot_id
+       WHERE h.qty > 0 ORDER BY b.slot`
+    )
+    .all() as { mint: string; name: string }[];
+  const heldBy: Record<string, string[]> = {};
+  for (const r of heldRows) (heldBy[r.mint] ??= []).push(r.name);
 
   return (
     <Scroller>
@@ -71,7 +82,7 @@ export default async function MarketPage() {
         </p>
       )}
 
-      <MarketTable list={list} />
+      <MarketTable list={list} heldBy={heldBy} />
     </div>
     </Scroller>
   );

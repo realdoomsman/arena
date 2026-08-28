@@ -3,7 +3,10 @@ import { getDb } from "@/lib/db";
 import { listBots, getBotReturn, totalUnits } from "@/lib/bot-nav";
 import { personaFor } from "@/lib/bot-persona";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
+import { minutesToNextWake } from "@/lib/bots";
+import { sparkline } from "@/lib/bot-stats";
 import { Avatar } from "@/components/Avatar";
+import { Sparkline } from "@/components/Sparkline";
 
 const DAY = 24 * 3600_000;
 
@@ -20,6 +23,8 @@ export function Leaderboard() {
   const db = getDb();
   const bots = listBots();
 
+  // eslint-disable-next-line react-hooks/purity
+  const nowMinute = new Date().getUTCMinutes();
   const rows = bots.map((b) => {
     const persona = personaFor(b.slug);
     const positions = (
@@ -33,9 +38,12 @@ export function Leaderboard() {
       kind: b.kind,
       color: persona.color,
       d7: getBotReturn(b.id, 7 * DAY),
+      d24h: getBotReturn(b.id, DAY),
       d30: getBotReturn(b.id, 30 * DAY),
+      spark: sparkline(b.id),
       backingSol: totalUnits(b.id) / LAMPORTS_PER_SOL,
       positions,
+      nextWakeMin: minutesToNextWake(b.slot, nowMinute),
     };
   });
 
@@ -62,13 +70,13 @@ export function Leaderboard() {
         <p className="th hidden sm:block">7-day trading return · beating Monkey is the bar</p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-sm">
+        <table className="w-full min-w-[52rem] text-sm">
           <thead>
             <tr className="border-b border-hairline">
-              {["#", "Bot", "7d", "30d", "Backing", "Positions"].map((h, i) => (
+              {["#", "Bot", "24h", "7d", "30d", "7d curve", "Backing", "Pos", "Wakes"].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-5 py-3 ${i >= 2 ? "text-right" : "text-left"}`}
+                  className={`px-4 py-3 ${i >= 2 ? "text-right" : "text-left"}`}
                 >
                   <span className="th">{h}</span>
                 </th>
@@ -85,12 +93,12 @@ export function Leaderboard() {
                   key={r.slug}
                   className={`table-row-hover ${isMonkey ? "bg-gold/5" : ""}`}
                 >
-                  <td className="px-5 py-3.5 num text-ink3">
+                  <td className="px-4 py-3 num text-ink3">
                     {r.d7 === null ? "·" : i + 1}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 py-3">
                     <Link href={`/bot/${r.slug}`} className="group flex items-center gap-3">
-                      <Avatar slug={r.slug} name={r.name} color={r.color} size={30} />
+                      <Avatar slug={r.slug} name={r.name} color={r.color} size={28} />
                       <span className="font-semibold text-ink group-hover:text-brand transition-colors">
                         {r.name}
                       </span>
@@ -102,13 +110,20 @@ export function Leaderboard() {
                       {beatsMonkey && <span className="badge badge-success">beats monkey</span>}
                     </Link>
                   </td>
-                  <td className="px-5 py-3.5 text-right">{pct(r.d7, true)}</td>
-                  <td className="px-5 py-3.5 text-right">{pct(r.d30)}</td>
-                  <td className="px-5 py-3.5 text-right num text-ink2">
-                    {r.backingSol > 0 ? `${r.backingSol.toFixed(2)} SOL` : "—"}
+                  <td className="px-4 py-3 text-right">{pct(r.d24h)}</td>
+                  <td className="px-4 py-3 text-right">{pct(r.d7, true)}</td>
+                  <td className="px-4 py-3 text-right">{pct(r.d30)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Sparkline points={r.spark} />
                   </td>
-                  <td className="px-5 py-3.5 text-right num text-ink2">
+                  <td className="px-4 py-3 text-right num text-ink2">
+                    {r.backingSol > 0 ? `${r.backingSol.toFixed(2)} ◎` : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right num text-ink2">
                     {r.positions > 0 ? r.positions : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right num text-ink3">
+                    {r.nextWakeMin === 0 ? "now" : `${r.nextWakeMin}m`}
                   </td>
                 </tr>
               );

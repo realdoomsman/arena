@@ -46,20 +46,8 @@ function hourKey(d = new Date()): string {
   ).padStart(2, "0")}T${String(d.getUTCHours()).padStart(2, "0")}`;
 }
 
-/**
- * How many times per hour each bot wakes. 1 (hourly, the default) keeps the
- * original cadence; higher values put the fleet on memecoin time — a fresh
- * launch's whole life can fit inside one hourly gap. Must divide 60 so the
- * schedule is a clean grid; anything else falls back to 1 loudly.
- */
-export function wakesPerHour(): number {
-  const raw = Number(process.env.ARENA_WAKES_PER_HOUR ?? 1);
-  if ([1, 2, 3, 4, 6, 12].includes(raw)) return raw;
-  if (process.env.ARENA_WAKES_PER_HOUR) {
-    console.warn(`[scheduler] ARENA_WAKES_PER_HOUR=${process.env.ARENA_WAKES_PER_HOUR} is not a divisor of 60 — using 1`);
-  }
-  return 1;
-}
+import { wakesPerHour } from "./bots";
+export { wakesPerHour };
 
 /**
  * The idempotency key for one scheduled wake. At one wake per hour it stays

@@ -234,6 +234,31 @@ OUTPUT
 
 Return your reasoning and a list of actions. Be direct about your thesis and your sizing. "I'm buying token #47 for 100% of NAV because it just launched, has strong social volume, and the bonding curve is accelerating. I'm going all-in" is a valid, transparent decision. "I'm being cautious" is not. Your reasoning is published verbatim, unedited, whether it looks smart later or not.`;
 
+/**
+ * How many times per hour each bot wakes. 1 (hourly, the default) keeps the
+ * original cadence; higher values put the fleet on memecoin time. Must divide
+ * 60 so the schedule is a clean grid; anything else falls back to 1 loudly.
+ * Lives here (not in the scheduler) so UI code can show wake times without
+ * importing the trading engine.
+ */
+export function wakesPerHour(): number {
+  const raw = Number(process.env.ARENA_WAKES_PER_HOUR ?? 1);
+  if ([1, 2, 3, 4, 6, 12].includes(raw)) return raw;
+  if (process.env.ARENA_WAKES_PER_HOUR) {
+    console.warn(
+      `[scheduler] ARENA_WAKES_PER_HOUR=${process.env.ARENA_WAKES_PER_HOUR} is not a divisor of 60 — using 1`
+    );
+  }
+  return 1;
+}
+
+/** Minutes until this slot's next scheduled wake. */
+export function minutesToNextWake(slot: number, nowMinute: number): number {
+  const interval = 60 / wakesPerHour();
+  const base = slot % interval;
+  return (base - (nowMinute % interval) + interval) % interval;
+}
+
 /** True when this bot's provider key is configured. Controls are always live. */
 export function botKeyPresent(provider: Provider): boolean {
   const key = PROVIDER_KEY[provider];
