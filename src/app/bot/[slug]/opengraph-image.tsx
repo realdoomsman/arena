@@ -14,19 +14,19 @@ const DAY = 24 * 3600_000;
 // Persona colors are CSS variables for the DOM; satori needs literals. Same
 // values as globals.css :root.
 const CSS_COLORS: Record<string, string> = {
-  "var(--s1)": "#3d7dff",
-  "var(--s2)": "#ff6b6b",
+  "var(--s1)": "#6ba3ff",
+  "var(--s2)": "#ff7a8a",
   "var(--s3)": "#4ecdc4",
-  "var(--s4)": "#f7b731",
-  "var(--s5)": "#a55eea",
-  "var(--s6)": "#26de81",
-  "var(--s7)": "#45aaf2",
-  "var(--s8)": "#fd9644",
-  "var(--gold)": "#e8c15a",
-  "var(--ink2)": "#9aa3b2",
-  "var(--ink3)": "#5f6774",
+  "var(--s4)": "#f7c04a",
+  "var(--s5)": "#b98cff",
+  "var(--s6)": "#4fe0a0",
+  "var(--s7)": "#59b7ff",
+  "var(--s8)": "#ff9d5c",
+  "var(--gold)": "#f0c65a",
+  "var(--ink2)": "#bdb6cf",
+  "var(--ink3)": "#8a839e",
 };
-const hex = (cssColor: string | undefined) => CSS_COLORS[cssColor ?? ""] ?? "#e8c15a";
+const hex = (cssColor: string | undefined) => CSS_COLORS[cssColor ?? ""] ?? "#f0c65a";
 
 /**
  * The share card. Every link posted to X becomes a small billboard: name in
@@ -64,8 +64,8 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#0a0b0d",
-          color: "#e8eaf0",
+          background: "#100e17",
+          color: "#f6f4fb",
           padding: 64,
           fontFamily: "monospace",
         }}
@@ -84,18 +84,18 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
               {bot?.name ?? "Automata"}
             </div>
           </div>
-          <div style={{ fontSize: 28, color: "#5f6774", letterSpacing: 4 }}>◆ AUTOMATA</div>
+          <div style={{ fontSize: 28, color: "#8a839e", letterSpacing: 4 }}>◆ AUTOMATA</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 24, color: "#5f6774", textTransform: "uppercase", letterSpacing: 3 }}>
+            <div style={{ fontSize: 24, color: "#8a839e", textTransform: "uppercase", letterSpacing: 3 }}>
               7-day trading return
             </div>
-            <div style={{ fontSize: 120, fontWeight: 700, color: d7 === null ? "#5f6774" : up ? "#35c77f" : "#f05252" }}>
+            <div style={{ fontSize: 120, fontWeight: 700, color: d7 === null ? "#8a839e" : up ? "#3ddc84" : "#ff5c6c" }}>
               {pct}
             </div>
-            <div style={{ display: "flex", gap: 40, fontSize: 26, color: "#9aa3b2" }}>
+            <div style={{ display: "flex", gap: 40, fontSize: 26, color: "#bdb6cf" }}>
               <div style={{ display: "flex" }}>
                 win rate{" "}
                 {stats?.winRate == null ? "—" : ` ${(stats.winRate * 100).toFixed(0)}%`}
@@ -116,7 +116,7 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
                   style={{
                     width: 8,
                     height: h,
-                    background: up ? "#35c77f" : "#f05252",
+                    background: up ? "#3ddc84" : "#ff5c6c",
                     opacity: 0.4 + (i / bars.length) * 0.6,
                     borderRadius: 2,
                   }}
@@ -126,7 +126,7 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
           )}
         </div>
 
-        <div style={{ fontSize: 22, color: "#5f6774" }}>
+        <div style={{ fontSize: 22, color: "#8a839e" }}>
           real wallets · real swaps · no simulated data · beating the random picker is the bar
         </div>
       </div>

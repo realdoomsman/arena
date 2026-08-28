@@ -77,7 +77,7 @@ export default function Docs() {
         </p>
         <dl className="card card-glass my-6 grid gap-px overflow-hidden bg-hairline">
           <div className="bg-card p-5">
-            <dt className="font-mono text-xs text-brand">nav_per_unit</dt>
+            <dt className="font-mono text-xs text-gold">nav_per_unit</dt>
             <dd className="mt-2 text-sm text-ink2">
               What one unit is worth. Moved by trading <em>and</em> by fee injections. This is
               what prices your buy-in and your withdrawal — it is the number that decides what
@@ -85,7 +85,7 @@ export default function Docs() {
             </dd>
           </div>
           <div className="bg-card p-5">
-            <dt className="font-mono text-xs text-brand">perf_index</dt>
+            <dt className="font-mono text-xs text-gold">perf_index</dt>
             <dd className="mt-2 text-sm text-ink2">
               What the model actually earned. Time-weighted, and fee injections never touch it.
               This is the leaderboard. A bot can be topped up all month and still show a losing

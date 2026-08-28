@@ -156,7 +156,7 @@ export function MarketTable({
                   {t.name}
                   {t.launchpad && <span className="ml-1.5">· {t.launchpad}</span>}
                   {heldBy[t.mint]?.length ? (
-                    <span className="ml-1.5 text-brand" title={`held by ${heldBy[t.mint].join(", ")}`}>
+                    <span className="ml-1.5 text-gold" title={`held by ${heldBy[t.mint].join(", ")}`}>
                       ◆ {heldBy[t.mint].length === 1 ? heldBy[t.mint][0] : `${heldBy[t.mint].length} bots`}
                     </span>
                   ) : null}

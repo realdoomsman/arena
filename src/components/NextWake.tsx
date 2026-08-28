@@ -39,7 +39,7 @@ export function NextWake({ slot, wakesPerHour = 1 }: { slot: number; wakesPerHou
   }
 
   if (minutes === 0 && seconds <= 5) {
-    return <span className="num text-brand">waking…</span>;
+    return <span className="num text-gold">waking…</span>;
   }
   return (
     <span className="num text-ink3">

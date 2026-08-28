@@ -515,7 +515,7 @@ export default async function DecisionPage({
                   </h3>
                   <ul className="space-y-2">
                     {snap.lessons.map((lesson, i) => (
-                      <li key={i} className="rounded-lg bg-brand/5 px-4 py-3 text-sm text-ink2">
+                      <li key={i} className="rounded-lg bg-gold/5 px-4 py-3 text-sm text-ink2">
                         {lesson}
                       </li>
                     ))}

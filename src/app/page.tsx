@@ -326,7 +326,7 @@ export default async function Home() {
                         : {n.response}
                       </p>
                       {n.adopted_lesson && (
-                        <p className="th mt-1 text-brand">carried into memory</p>
+                        <p className="th mt-1 text-gold">carried into memory</p>
                       )}
                     </li>
                   ))}
