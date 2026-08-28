@@ -16,14 +16,17 @@ export function BackBot({
   botName,
   signedIn,
   myUnits,
+  solUsd = null,
 }: {
   slug: string;
   botName: string;
   signedIn: boolean;
   myUnits: number;
+  solUsd?: number | null;
 }) {
   const router = useRouter();
   const [sol, setSol] = useState("0.1");
+  const amountUsd = solUsd != null && Number(sol) > 0 ? Number(sol) * solUsd : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -85,7 +88,12 @@ export function BackBot({
     <div>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="th">Amount (SOL)</span>
+          <span className="th flex items-center gap-2">
+            Amount (SOL)
+            {amountUsd != null && (
+              <span className="text-ink3">≈ ${amountUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+            )}
+          </span>
           <input
             type="number"
             min="0.02"
@@ -94,6 +102,18 @@ export function BackBot({
             onChange={(e) => setSol(e.target.value)}
             className="w-32 rounded-lg border border-hairline-2 bg-card2 px-3 py-2 font-mono text-sm tabular-nums outline-none transition-colors focus:border-brand"
           />
+          <div className="mt-1 flex gap-1.5">
+            {[0.1, 0.5, 1].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setSol(String(v))}
+                className="badge cursor-pointer transition-colors hover:border-hairline-3 hover:text-ink"
+              >
+                {v}◎{solUsd != null ? ` · $${Math.round(v * solUsd)}` : ""}
+              </button>
+            ))}
+          </div>
         </label>
         <button
           type="button"

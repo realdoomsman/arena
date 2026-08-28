@@ -8,10 +8,10 @@ import { getLessons, getPlaybook, playbookHistory } from "@/lib/bot-memory";
 import { injectionHistory } from "@/lib/bot-funding";
 import { MODEL_PRICE, wakesPerHour } from "@/lib/bots";
 import { NextWake } from "@/components/NextWake";
-import { LAMPORTS_PER_SOL } from "@/lib/accounts";
+import { LAMPORTS_PER_SOL, getSolBalance } from "@/lib/accounts";
 import { getUser } from "@/lib/auth";
 import { mintSymbol, SOL_MINT } from "@/lib/wallets";
-import { getPrices } from "@/lib/prices";
+import { getPrices, getMarketStats } from "@/lib/prices";
 import { BackBot } from "@/components/BackBot";
 import { EquityCurve } from "@/components/EquityCurve";
 import { Avatar } from "@/components/Avatar";
@@ -226,14 +226,45 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
   const backingSol = (units * (lastUnitPrice ?? 1)) / LAMPORTS_PER_SOL;
 
   // Live prices for held positions, so the Value column is real or absent —
-  // never invented. A missing price renders as "—", not a guess.
-  const posPrices =
-    positions.length > 0
-      ? await getPrices([SOL_MINT, ...positions.map((p) => p.mint)]).catch(
-          () => ({}) as Record<string, { usdPrice: number }>
-        )
-      : ({} as Record<string, { usdPrice: number }>);
-  const posSolUsd = posPrices[SOL_MINT]?.usdPrice ?? null;
+  // never invented. A missing price renders as "—", not a guess. SOL/USD is
+  // fetched unconditionally so every SOL figure on the page can show its dollar
+  // equivalent; market stats add each held token's market cap; and the wallet's
+  // own SOL balance is the bot's cash, which turns positions into an allocation.
+  const heldMints = positions.map((p) => p.mint);
+  const [solPriceMap, posPrices, posStats, idleLamports] = await Promise.all([
+    getPrices([SOL_MINT]).catch(() => ({}) as Record<string, { usdPrice: number }>),
+    heldMints.length > 0
+      ? getPrices(heldMints).catch(() => ({}) as Record<string, { usdPrice: number }>)
+      : Promise.resolve({} as Record<string, { usdPrice: number }>),
+    heldMints.length > 0
+      ? getMarketStats(heldMints).catch(() => ({}) as Record<string, { mcap: number | null }>)
+      : Promise.resolve({} as Record<string, { mcap: number | null }>),
+    getSolBalance(bot.wallet).catch(() => 0),
+  ]);
+  const solUsd = solPriceMap[SOL_MINT]?.usdPrice ?? null;
+  const usd = (sol: number): string | null =>
+    solUsd == null
+      ? null
+      : `$${(sol * solUsd).toLocaleString("en-US", {
+          maximumFractionDigits: sol * solUsd < 1000 ? 2 : 0,
+        })}`;
+
+  // Derive each position's live value (SOL), P&L and market cap once, so the
+  // table and the cash-vs-deployed allocation share one honest computation.
+  const derivedPositions = positions.map((p) => {
+    const priceUsd = posPrices[p.mint]?.usdPrice;
+    const valueSol =
+      solUsd && priceUsd !== undefined && Number.isFinite(priceUsd)
+        ? (p.qty * priceUsd) / solUsd
+        : null;
+    const costSol = p.cost_lamports / LAMPORTS_PER_SOL;
+    const pnlPct = valueSol !== null && costSol > 0 ? valueSol / costSol - 1 : null;
+    return { ...p, priceUsd, valueSol, costSol, pnlPct, mcap: posStats[p.mint]?.mcap ?? null };
+  });
+  const idleSol = idleLamports / LAMPORTS_PER_SOL;
+  const deployedSol = derivedPositions.reduce((s, p) => s + (p.valueSol ?? 0), 0);
+  const bookSol = idleSol + deployedSol;
+  const deployedPct = bookSol > 0 ? (deployedSol / bookSol) * 100 : 0;
 
   const keyEnv = bot.provider === "none" ? null : (PROVIDER_KEY[bot.provider] ?? null);
   const live = (!keyEnv || Boolean(process.env[keyEnv])) && Boolean(bot.enabled);
@@ -342,6 +373,9 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                         <div className="display text-xl num text-ink">
                           {units > 0 ? `${backingSol.toFixed(2)} SOL` : "—"}
                         </div>
+                        {units > 0 && usd(backingSol) && (
+                          <div className="th mt-1 text-ink3">{usd(backingSol)}</div>
+                        )}
                         {aum.holders > 0 && (
                           <div className="th mt-1">{aum.holders} backer{aum.holders !== 1 ? "s" : ""}</div>
                         )}
@@ -364,7 +398,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
           {/* Action Bar */}
           <div className="card card-glass p-6 mb-8">
-            <BackBot slug={bot.slug} botName={bot.name} signedIn={Boolean(user)} myUnits={myUnits} />
+            <BackBot slug={bot.slug} botName={bot.name} signedIn={Boolean(user)} myUnits={myUnits} solUsd={solUsd} />
             {myUnits > 0 && (
               <div className="mt-5 pt-5 border-t border-hairline">
                 <div className="flex items-center justify-between th">
@@ -409,9 +443,16 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   ? "—"
                   : `${tstats.realizedLamports >= 0 ? "+" : ""}${(tstats.realizedLamports / LAMPORTS_PER_SOL).toFixed(2)}◎`}
               </div>
-              <div className="th mt-1">
-                {tstats.avgHoldHours === null
+              <div className="th mt-1 text-ink3">
+                {tstats.closedTrades === 0
                   ? "closed pnl"
+                  : tstats.bestLamports !== null && tstats.worstLamports !== null
+                    ? `best +${(tstats.bestLamports / LAMPORTS_PER_SOL).toFixed(2)}◎ · worst ${(tstats.worstLamports / LAMPORTS_PER_SOL).toFixed(2)}◎`
+                    : `${tstats.closedTrades} closed`}
+              </div>
+              <div className="th mt-0.5">
+                {tstats.avgHoldHours === null
+                  ? ""
                   : `avg hold ${tstats.avgHoldHours < 24 ? `${tstats.avgHoldHours.toFixed(1)}h` : `${(tstats.avgHoldHours / 24).toFixed(1)}d`}`}
               </div>
             </div>
@@ -563,17 +604,21 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             {positions.length === 0 ? (
               <Empty>{started ? "All cash." : "Never has."}</Empty>
             ) : (
-              <Table cols={["Token", "Quantity", "Cost Basis (SOL)", "Held For", "Value (SOL)", "P&L"]}>
-                {positions.map((p) => {
+              <>
+              <Table cols={["Token", "Qty", "Cost ◎", "Value", "Weight", "MCap", "Held", "P&L"]}>
+                {derivedPositions.map((p) => {
                   // eslint-disable-next-line react-hooks/purity
                   const heldHours = p.opened_at ? ((Date.now() - p.opened_at) / 3600_000) : 0;
-                  const priceUsd = posPrices[p.mint]?.usdPrice;
-                  const valueSol =
-                    posSolUsd && priceUsd !== undefined && Number.isFinite(priceUsd)
-                      ? (p.qty * priceUsd) / posSolUsd
-                      : null;
-                  const costSol = p.cost_lamports / LAMPORTS_PER_SOL;
-                  const pnlPct = valueSol !== null && costSol > 0 ? valueSol / costSol - 1 : null;
+                  const weight = bookSol > 0 && p.valueSol !== null ? (p.valueSol / bookSol) * 100 : null;
+                  const valUsd = p.valueSol !== null ? usd(p.valueSol) : null;
+                  const mcapStr =
+                    p.mcap == null
+                      ? "—"
+                      : p.mcap >= 1e9
+                        ? `$${(p.mcap / 1e9).toFixed(2)}B`
+                        : p.mcap >= 1e6
+                          ? `$${(p.mcap / 1e6).toFixed(1)}M`
+                          : `$${Math.round(p.mcap / 1e3)}K`;
                   return (
                     <tr key={p.mint} className="table-row-hover">
                       <Td>
@@ -584,27 +629,50 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                           {mintSymbol(p.mint)}
                         </Link>
                       </Td>
-                      <Td right>{p.qty.toPrecision(6)}</Td>
-                      <Td right>{costSol.toFixed(4)}</Td>
+                      <Td right muted>{p.qty.toPrecision(4)}</Td>
+                      <Td right muted>{p.costSol.toFixed(3)}</Td>
+                      <td className="px-6 py-4 text-right num">
+                        {p.valueSol === null ? (
+                          <span className="text-ink3">—</span>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-ink">{p.valueSol.toFixed(3)}◎</span>
+                            {valUsd && <span className="th block">{valUsd}</span>}
+                          </>
+                        )}
+                      </td>
+                      <Td right muted>{weight === null ? "—" : `${weight.toFixed(0)}%`}</Td>
+                      <Td right muted>{mcapStr}</Td>
                       <Td right muted>
                         {heldHours < 1 ? `${(heldHours * 60).toFixed(0)}m` :
                          heldHours < 24 ? `${heldHours.toFixed(1)}h` :
                          `${(heldHours / 24).toFixed(1)}d`}
                       </Td>
-                      <td className="px-6 py-4 text-right font-semibold text-ink num">
-                        {valueSol === null ? "—" : valueSol.toFixed(4)}
-                      </td>
                       <td
                         className={`px-6 py-4 text-right font-semibold num ${
-                          pnlPct === null ? "text-ink3" : pnlPct >= 0 ? "text-good" : "text-bad"
+                          p.pnlPct === null ? "text-ink3" : p.pnlPct >= 0 ? "text-good" : "text-bad"
                         }`}
                       >
-                        {pnlPct === null ? "—" : `${pnlPct >= 0 ? "+" : ""}${(pnlPct * 100).toFixed(1)}%`}
+                        {p.pnlPct === null ? "—" : `${p.pnlPct >= 0 ? "+" : ""}${(p.pnlPct * 100).toFixed(1)}%`}
                       </td>
                     </tr>
                   );
                 })}
               </Table>
+              {bookSol > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 px-1 th">
+                  <span>
+                    deployed <span className="num text-ink">{deployedSol.toFixed(2)}◎</span>
+                    {usd(deployedSol) && <span className="num text-ink3"> · {usd(deployedSol)}</span>}
+                    <span className="text-ink3"> ({deployedPct.toFixed(0)}%)</span>
+                  </span>
+                  <span>
+                    cash <span className="num text-ink">{idleSol.toFixed(2)}◎</span>
+                    {usd(idleSol) && <span className="num text-ink3"> · {usd(idleSol)}</span>}
+                  </span>
+                </div>
+              )}
+              </>
             )}
           </Section>
 
@@ -694,8 +762,11 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                         </span>
                       </div>
                       <div className="flex items-center gap-4 th">
-                        <span className="num">
+                        <span className="num text-ink2">
                           {(t.lamports / LAMPORTS_PER_SOL).toFixed(4)} SOL
+                          {usd(t.lamports / LAMPORTS_PER_SOL) && (
+                            <span className="text-ink3"> · {usd(t.lamports / LAMPORTS_PER_SOL)}</span>
+                          )}
                         </span>
                         <a
                           href={`https://solscan.io/tx/${t.signature}`}

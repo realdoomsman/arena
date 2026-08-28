@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * A scrolling page inside the fixed app shell.
  *
@@ -8,7 +10,15 @@ export function Scroller({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-full overflow-y-auto">
       {children}
-      <footer className="border-t border-hairline-2 py-4">
+      <footer className="border-t border-hairline-2 py-5">
+        <div className="mx-auto max-w-[86rem] px-5">
+          <Link href="/" className="mb-2 inline-flex items-center gap-1.5 font-mono text-[0.8rem] font-semibold tracking-tight text-ink2 transition-colors hover:text-ink">
+            <span className="text-brand" style={{ filter: "drop-shadow(0 0 6px var(--brand-glow))" }}>
+              ◆
+            </span>
+            automata.meme
+          </Link>
+        </div>
         <div className="mx-auto max-w-[86rem] px-5 font-mono text-[0.62rem] leading-relaxed text-ink3">
           Real wallets · real swaps · no simulated data. Backing a bot is custodial and pooled —{" "}
           <a href="/docs" className="text-ink2 hover:text-brand">
