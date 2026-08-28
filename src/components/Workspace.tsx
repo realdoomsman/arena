@@ -34,6 +34,10 @@ export type BotCard = {
   positions: number;
   backingSol: number;
   spark: number[];
+  solBalance: number | null;
+  lastThought: string | null;
+  lastThoughtTs: number | null;
+  lastAction: string | null;
 };
 export type TapeLine = { ts: number; slug: string; name: string; symbol: string; side: string; sol: number };
 export type FeedLine = { ts: number; slug: string | null; name: string; color: string; kind: string; text: string };
@@ -98,7 +102,7 @@ function statCell(label: string, value: React.ReactNode, tone?: string) {
   );
 }
 
-function botBody(b: BotCard) {
+function botBody(b: BotCard, solUsd: number | null) {
   return (
     <div className="flex flex-col gap-2.5 p-3">
       <div className="flex items-center gap-2.5">
@@ -111,6 +115,15 @@ function botBody(b: BotCard) {
           <div className={`display num text-xl ${cls(b.d7)}`}>{pct(b.d7)}</div>
           <div className="th">7d return</div>
         </div>
+      </div>
+      <div className="flex items-center justify-between border-y border-hairline bg-card2 px-2.5 py-1.5">
+        <span className="th">wallet balance</span>
+        <span className="num text-[13px] text-ink">
+          {b.solBalance === null ? "—" : `${b.solBalance.toFixed(3)}◎`}
+          {b.solBalance !== null && solUsd ? (
+            <span className="text-ink3"> · ${(b.solBalance * solUsd).toFixed(2)}</span>
+          ) : null}
+        </span>
       </div>
       <Sparkline points={b.spark} id={b.slug} w={300} h={40} />
       <div className="grid grid-cols-3 gap-px overflow-hidden border border-hairline bg-hairline">
@@ -127,6 +140,18 @@ function botBody(b: BotCard) {
         {statCell("Tokens", b.tokens || "—")}
         {statCell("Open pos", b.positions || "—")}
         {statCell("Backing", b.backingSol > 0 ? `${b.backingSol.toFixed(2)}◎` : "—")}
+      </div>
+      <div className="border border-hairline bg-card2/40">
+        <div className="flex items-center gap-2 border-b border-hairline px-2.5 py-1.5">
+          <span className="th text-brand">latest thinking</span>
+          {b.lastAction && (
+            <span className={`badge ${b.lastAction === "held" ? "" : "badge-success"}`}>{b.lastAction}</span>
+          )}
+          {b.lastThoughtTs && <span className="th ml-auto">{hhmm(b.lastThoughtTs)}</span>}
+        </div>
+        <p className="max-h-32 overflow-auto px-2.5 py-2 text-[12px] leading-snug text-ink2">
+          {b.lastThought || "No decision published yet — the model reasons on its next wake, and it appears here whether it trades or holds."}
+        </p>
       </div>
       <Link href={`/bot/${b.slug}`} className="btn-secondary px-2.5 py-1.5 text-center text-[0.66rem]">
         Open full record ↗
@@ -219,7 +244,7 @@ export function Workspace({
       <table className="w-full text-[12px]">
         <thead>
           <tr className="border-b border-hairline">
-            {["#", "MODEL", "7D", "MAX DD", "WIN"].map((h, i) => (
+            {["#", "MODEL", "BAL", "7D", "MAX DD", "WIN"].map((h, i) => (
               <th key={h} className={`px-2 py-1.5 ${i < 2 ? "text-left" : "text-right"}`}><span className="th text-[0.56rem]">{h}</span></th>
             ))}
           </tr>
@@ -238,6 +263,7 @@ export function Workspace({
                     {isMonkey && <span className="badge badge-warning">bar</span>}
                   </span>
                 </td>
+                <td className="px-2 py-1.5 text-right num text-ink2">{b.solBalance === null ? "—" : `${b.solBalance.toFixed(2)}◎`}</td>
                 <td className={`px-2 py-1.5 text-right num ${cls(b.d7)}`}>{pct(b.d7)}</td>
                 <td className="px-2 py-1.5 text-right num text-ink3">{b.maxDrawdownPct === null ? "—" : `${b.maxDrawdownPct.toFixed(0)}%`}</td>
                 <td className="px-2 py-1.5 text-right num text-ink2">{b.winRate === null ? "—" : `${(b.winRate * 100).toFixed(0)}%`}</td>
@@ -372,7 +398,7 @@ export function Workspace({
     if (id === "tape") return { title: "the tape", body: tapeBody(), w: 320, h: 300 };
     if (id === "about") return { title: "about the arena", body: aboutBody(), w: 380, h: 0 };
     const b = byId(id);
-    if (b) return { title: `${b.name} · ${b.kind === "control" ? "control" : "model"}`, swatch: b.color, body: botBody(b), w: 340, h: 0 };
+    if (b) return { title: `${b.name} · ${b.kind === "control" ? "control" : "model"}`, swatch: b.color, body: botBody(b, facts.sol), w: 340, h: 0 };
     return { title: id, body: null, w: 320, h: 300 };
   };
 
@@ -395,7 +421,7 @@ export function Workspace({
           {panel("live activity", activityBody())}
           {panel("hot market", hotBody())}
           {ranked.map((b) => (
-            <div key={b.slug} className="card overflow-hidden">{botBody(b)}</div>
+            <div key={b.slug} className="card overflow-hidden">{botBody(b, facts.sol)}</div>
           ))}
           {panel("the tape", tapeBody())}
         </div>

@@ -47,12 +47,38 @@ export default async function Home() {
     }
   ).n;
   const posStmt = db.prepare("SELECT COUNT(*) AS n FROM bot_holdings WHERE bot_id = ? AND qty > 0");
+  // Live wallet balance (as of the last wake) and the most recent published
+  // decision — so the room shows what each model holds and what it's thinking,
+  // trade or no trade.
+  const balStmt = db.prepare(
+    "SELECT sol_lamports FROM bot_snapshots WHERE bot_id = ? ORDER BY ts DESC, id DESC LIMIT 1"
+  );
+  const thoughtStmt = db.prepare(
+    "SELECT rationale, actions, ts FROM bot_decisions WHERE bot_id = ? AND published_at IS NOT NULL ORDER BY ts DESC, id DESC LIMIT 1"
+  );
 
   const cards: BotCard[] = bots.map((b) => {
     const persona = personaFor(b.slug);
     const stats = botTradeStats(b.id);
     const an = botAnalytics(b.id);
+    const balRow = balStmt.get(b.id) as { sol_lamports: number } | undefined;
+    const dRow = thoughtStmt.get(b.id) as
+      | { rationale: string; actions: string; ts: number }
+      | undefined;
+    let lastAction: string | null = null;
+    if (dRow) {
+      try {
+        const n = ((JSON.parse(dRow.actions || "{}").actions as unknown[]) ?? []).length;
+        lastAction = n === 0 ? "held" : `${n} trade${n === 1 ? "" : "s"}`;
+      } catch {
+        /* leave null */
+      }
+    }
     return {
+      solBalance: balRow ? balRow.sol_lamports / LAMPORTS_PER_SOL : null,
+      lastThought: dRow?.rationale || null,
+      lastThoughtTs: dRow?.ts ?? null,
+      lastAction,
       slug: b.slug,
       name: b.name,
       model: b.kind === "control" ? "code control" : b.model,
