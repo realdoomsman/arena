@@ -31,13 +31,26 @@ Set on the service (Railway → arena → Variables):
 
 ### Going live with real money — in order
 
-1. Add `HELIUS_RPC_URL` and the provider keys you want awake.
+The database lives on the Railway volume, so provisioning and seeding must run
+INSIDE the container — never on your laptop (a local run would write to a
+local file and touch nothing in production).
+
+1. Add `HELIUS_RPC_URL` and the provider keys you want awake (Railway →
+   Variables). The service restarts itself.
 2. Open `https://<site>/status` — every core row must be green except funding.
-3. From a machine with the PRODUCTION key in `.env.local`:
-   `npm run provision` (creates the 11 wallets against the prod DB — or just
-   let the boot do it), then `npm run seed` (dry run) and
-   `npm run seed -- --confirm` after sending the treasury enough SOL.
-4. Watch the first hour on `/status` and the Railway logs.
+   Wallets self-provision at boot; the treasury does not exist yet.
+3. Shell into the running service and create + inspect the treasury:
+   ```
+   railway ssh
+   npm run seed          # dry run — creates the treasury, prints its address
+   ```
+4. Send SOL to the printed treasury address (11 SOL seeds every bot at 1 SOL,
+   plus a little for fees), then, still inside the container:
+   ```
+   npm run seed -- --confirm
+   ```
+5. Watch the first hour on `/status` and `railway logs`. Bots wake on their
+   slots; the first decisions appear within the hour.
 
 ### Backups
 
