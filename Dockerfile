@@ -51,8 +51,9 @@ COPY package.json next.config.ts ./
 COPY scripts ./scripts
 COPY src ./src
 
-# The ledger and the wallet keys live here. Mount it, or lose them.
-VOLUME ["/data"]
+# The ledger and the wallet keys live at /data. Mount a persistent volume
+# there (docker-compose does; on Railway attach a Volume — a docker VOLUME
+# directive is rejected by their builder), or a deploy destroys both.
 RUN mkdir -p /data
 
 EXPOSE 3000
