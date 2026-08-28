@@ -202,10 +202,13 @@ const SOURCES: { path: string }[] = [
   { path: "tokens/v2/recent?limit=100" },
   { path: "tokens/v2/toptrending/5m?limit=100" },
   { path: "tokens/v2/toptrending/1h?limit=100" },
+  { path: "tokens/v2/toptrending/6h?limit=100" },
   { path: "tokens/v2/toptrending/24h?limit=100" },
   { path: "tokens/v2/toptraded/1h?limit=100" },
+  { path: "tokens/v2/toptraded/6h?limit=100" },
   { path: "tokens/v2/toptraded/24h?limit=100" },
   { path: "tokens/v2/toporganicscore/1h?limit=100" },
+  { path: "tokens/v2/toporganicscore/6h?limit=100" },
   { path: "tokens/v2/toporganicscore/24h?limit=100" },
 ];
 

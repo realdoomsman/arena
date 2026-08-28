@@ -51,11 +51,13 @@ const DECISION_SCHEMA = {
           kind: { type: "string" as const, enum: ["buy", "sell"] },
           idx: {
             type: "integer" as const,
-            description: "For a buy: the index of the token in the eligible list. Ignored for sells.",
+            description:
+              "For a buy of a LISTED token: its index in the eligible list. Omit when buying by mint address. Ignored for sells.",
           },
           mint: {
             type: "string" as const,
-            description: "For a sell: the mint of a position you currently hold. Ignored for buys.",
+            description:
+              "For a sell: the mint of a position you currently hold. For a buy: optionally, the exact mint address of ANY Solana token not on the list — it must resolve, price, and pass every safety gate, or the leg is refused.",
           },
           fraction: {
             type: "number" as const,
@@ -69,6 +71,37 @@ const DECISION_SCHEMA = {
   },
   required: ["rationale", "actions"],
   additionalProperties: false,
+};
+
+/**
+ * OpenAI-flavoured strict mode requires EVERY property key to appear in
+ * `required`; optionality is expressed as a nullable type instead. Anthropic
+ * and Google take the plain schema above; this variant exists so the same
+ * contract survives strict validation on the OpenAI-compatible providers.
+ */
+const STRICT_DECISION_SCHEMA = {
+  ...DECISION_SCHEMA,
+  properties: {
+    ...DECISION_SCHEMA.properties,
+    actions: {
+      ...DECISION_SCHEMA.properties.actions,
+      items: {
+        ...DECISION_SCHEMA.properties.actions.items,
+        properties: {
+          ...DECISION_SCHEMA.properties.actions.items.properties,
+          idx: {
+            ...DECISION_SCHEMA.properties.actions.items.properties.idx,
+            type: ["integer", "null"],
+          },
+          mint: {
+            ...DECISION_SCHEMA.properties.actions.items.properties.mint,
+            type: ["string", "null"],
+          },
+        },
+        required: ["kind", "idx", "mint", "fraction"],
+      },
+    },
+  },
 };
 
 const TOOL_NAME = "submit_decision";
@@ -174,7 +207,7 @@ async function thinkOpenAICompatible(
     tools: [
       {
         type: "function",
-        function: { name: TOOL_NAME, parameters: DECISION_SCHEMA, strict: true },
+        function: { name: TOOL_NAME, parameters: STRICT_DECISION_SCHEMA, strict: true },
       },
     ],
     tool_choice: { type: "function", function: { name: TOOL_NAME } },
@@ -245,6 +278,10 @@ function coerce(input: unknown): Decision {
       if (!Number.isFinite(fraction)) continue;
       if (r.kind === "buy" && Number.isInteger(r.idx)) {
         actions.push({ kind: "buy", idx: r.idx as number, fraction });
+      } else if (r.kind === "buy" && typeof r.mint === "string" && r.mint) {
+        // INFINITE MODE: a buy may name any mint directly. The validator and
+        // the executor's gates decide whether it is real, safe and routable.
+        actions.push({ kind: "buy", mint: r.mint, fraction });
       } else if (r.kind === "sell" && typeof r.mint === "string" && r.mint) {
         actions.push({ kind: "sell", mint: r.mint, fraction });
       }
@@ -288,7 +325,9 @@ export function renderSnapshot(s: MarketSnapshot): string {
   }
   lines.push("");
 
-  lines.push(`## Tradeable tokens (${s.eligible.length}) — buy by idx, nothing else is tradeable`);
+  lines.push(
+    `## Discovery list (${s.eligible.length}) — buy listed tokens by idx; any OTHER Solana mint can be bought by naming its exact address (same safety gates apply)`
+  );
   lines.push(
     "Sorted by 1h volume: the money is moving at the top. NEW = first pool under 24h old; most fresh launches go to zero within hours, some 100x. That is the game."
   );

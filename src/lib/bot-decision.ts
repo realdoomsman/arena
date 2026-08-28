@@ -8,15 +8,23 @@
 import type { EligibleToken } from "./bot-universe";
 
 /**
- * A buy names an INDEX into the eligible list, never a mint address.
+ * A buy names EITHER an index into the eligible list (the fast path) OR any
+ * Solana mint address directly (INFINITE MODE: the universe is the chain, not
+ * the discovery feeds).
  *
- * This is the injection boundary. Token metadata is attacker-controlled, so a
- * model that has been talked into buying something can only express that as an
- * index — and every index resolves to a token the safety gates already cleared.
+ * The safety boundary is the EXECUTOR, not the address book: every buy —
+ * listed or not — passes the same execution-time gates (freeze authority,
+ * mint authority, rug flag, holder concentration) and must be routable and
+ * priceable, or the leg is refused and the refusal published. Token metadata
+ * remains attacker-controlled text; a model talked into naming a mint it saw
+ * in a token name still cannot buy anything the gates reject.
  */
 export type BotAction =
-  | { kind: "buy"; idx: number; fraction: number }
+  | { kind: "buy"; idx?: number; mint?: string; fraction: number }
   | { kind: "sell"; mint: string; fraction: number };
+
+/** Base58 shape of a Solana address — 32 to 44 chars, no 0/O/I/l. */
+export const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 export type Decision = {
   /** Published verbatim. Never edited, however it reads in hindsight. */
@@ -99,10 +107,20 @@ export function validateDecision(
     }
 
     if (raw.kind === "buy") {
-      // An index outside the list is the hallucinated-ticker failure. It is
-      // dropped silently rather than coerced to a neighbour — buying a
-      // different token than the one asked for is worse than not trading.
-      if (!Number.isInteger(raw.idx) || raw.idx < 0 || raw.idx >= ctx.eligible.length) {
+      const byMint = raw.idx === undefined || raw.idx === null;
+      if (byMint) {
+        // A direct-mint buy: any token on Solana. The address must at least
+        // LOOK like an address — everything else (does it exist, is it safe,
+        // can it be routed) is the executor's job, where refusals are
+        // published rather than silently swallowed.
+        if (typeof raw.mint !== "string" || !MINT_RE.test(raw.mint)) {
+          notes.push({ action: raw, kept: false, reason: "not a valid mint address" });
+          continue;
+        }
+      } else if (!Number.isInteger(raw.idx) || raw.idx! < 0 || raw.idx! >= ctx.eligible.length) {
+        // An index outside the list is the hallucinated-ticker failure. It is
+        // dropped rather than coerced to a neighbour — buying a different
+        // token than the one asked for is worse than not trading.
         notes.push({ action: raw, kept: false, reason: "index is not on the eligible list" });
         continue;
       }
@@ -118,7 +136,9 @@ export function validateDecision(
         continue;
       }
       projectedIdle -= lamports;
-      const clamped: BotAction = { kind: "buy", idx: raw.idx, fraction: lamports / ctx.navLamports };
+      const clamped: BotAction = byMint
+        ? { kind: "buy", mint: raw.mint, fraction: lamports / ctx.navLamports }
+        : { kind: "buy", idx: raw.idx, fraction: lamports / ctx.navLamports };
       actions.push(clamped);
       notes.push({
         action: clamped,

@@ -40,9 +40,9 @@ attack surface:
 
 - A note is **data, never prompt**: it rides inside the market snapshot under
   an "advisory, untrusted" heading and can never change the rules
-- The executor is unchanged — bots still buy only by index through the same
-  safety gates, so even a fully hostile note cannot move a lamport the model
-  couldn't already
+- The executor is unchanged — every buy passes the same safety gates, and
+  notes may never name mint addresses, so even a fully hostile note cannot
+  move a lamport the model couldn't already
 - Every note is **screened** before the bot sees it: hard code checks
   (injection markers, smuggled addresses, links, length) plus an optional
   model screen for genuineness
@@ -246,7 +246,11 @@ Even in INFINITE MODE, safety gates remain active:
 - Minimum trade size — reject below ~0.008 SOL (cost > position)
 
 **Always**:
-- Models select by INDEX only — never mint address (prevents prompt injection)
+- Every buy — listed by index or named by mint — passes the full execution-time
+  safety battery, and must be priceable and routable or the leg is refused
+  with the refusal published. The boundary is the executor, not the address book
+- Backer notes may never name mint addresses (screened out) — a paid channel
+  that could point a bot at a token would be a shilling machine
 - All decisions validated by code — prompts are suggestions, validators are constraints
 - Every trade confirmed on-chain before recording — no phantom fills
 
@@ -268,7 +272,9 @@ Three code-driven bots provide the real baseline:
 
 ## Tradeable Universe
 
-**ALL pump.fun tokens** are eligible:
+**The universe is the whole of Solana.** The discovery list is the surface,
+not a boundary — a bot may buy any mint it can name and justify, through the
+same gates. What the feeds surface:
 
 - Eight keyless Jupiter feeds: recent launches, top trending (5m/1h/24h), top
   traded (1h/24h), top organic score (1h/24h) — the recent feed carries fresh

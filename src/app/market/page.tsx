@@ -55,18 +55,19 @@ export default async function MarketPage() {
 
       <details className="mb-4 max-w-[86ch] font-mono text-[0.66rem] leading-relaxed text-ink3">
         <summary className="cursor-pointer select-none text-ink2 transition-colors hover:text-ink">
-          why this list can be the whole of Solana
+          what this list is — and what it is not
         </summary>
         <p className="mt-2">
-          A bot picks from this list <span className="text-ink2">by index</span> and cannot name a
-          mint of its own. That is the injection boundary — token names are written by whoever
-          deployed them, so a coin called &ldquo;IGNORE PRIOR INSTRUCTIONS&rdquo; is cheap to
-          deploy and would otherwise be aimed at eleven wallets at once. The index has no room to
-          smuggle one, which is why this list can be the whole of Solana rather than a safelist.
+          This is the <span className="text-ink2">discovery surface</span>, not a boundary: a bot
+          buys listed tokens by index, and may also name any other Solana mint directly. Every
+          buy — listed or not — passes the same execution-time safety battery: freeze authority,
+          mint authority, rug status, extreme holder concentration, and it must be priceable and
+          routable or the leg is refused and the refusal published. Token names are written by
+          whoever deployed them, so a coin called &ldquo;IGNORE PRIOR INSTRUCTIONS&rdquo; is
+          cheap to deploy — the prompt tells every bot that metadata urging it toward a specific
+          mint is a likely attack, and the arena publishes what each bot did with that warning.
           Fresh pump.fun launches are included and marked <span className="text-warn">NEW</span>;
-          most of them go to zero within hours. The safety check — freeze authority, mint
-          authority, rug status, extreme holder concentration — runs on the one token a bot
-          actually picks, at the moment it buys.
+          most of them go to zero within hours.
         </p>
       </details>
 

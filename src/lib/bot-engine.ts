@@ -226,7 +226,22 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
     }
     try {
       if (action.kind === "buy") {
-        const token = snap.eligible[action.idx];
+        // Listed tokens resolve by index; INFINITE MODE also accepts any
+        // mint named directly. Both paths land on the same object and walk
+        // the same gates — the universe is the chain, the boundary is the
+        // executor.
+        const token =
+          action.idx !== undefined && action.idx !== null
+            ? (snap.eligible[action.idx] ?? null)
+            : await resolveMint(action.mint ?? "", snap.eligible);
+        if (!token) {
+          notes.push({
+            action,
+            kept: false,
+            reason: "mint could not be resolved or priced — unknown tokens cannot be bought honestly",
+          });
+          continue;
+        }
         // The safety gate, on the one token this bot actually chose. Cheap
         // enough to run per trade, which is what lets the universe be the
         // whole of Solana instead of whatever a rate limit could pre-clear.
@@ -491,6 +506,53 @@ async function commitSell(
   }
 
   return proceeds;
+}
+
+/**
+ * Resolve a directly-named mint into the same shape a listed token has.
+ * Listed mints reuse their live row; anything else is looked up on Jupiter
+ * and priced live. Null when the token cannot be identified AND priced —
+ * an unpriceable buy could never be marked or exited honestly.
+ */
+async function resolveMint(mint: string, eligible: EligibleToken[]): Promise<EligibleToken | null> {
+  if (!mint) return null;
+  const listed = eligible.find((t) => t.mint === mint);
+  if (listed) return listed;
+
+  const { getTokenDetail } = await import("./prices");
+  const [detail, prices] = await Promise.all([
+    getTokenDetail(mint).catch(() => null),
+    getPrices([mint], { maxStaleMs: 5 * 60_000 }).catch(
+      () => ({}) as Record<string, { usdPrice: number }>
+    ),
+  ]);
+  const price = prices[mint]?.usdPrice;
+  if (!price || !Number.isFinite(price) || price <= 0) return null;
+
+  const createdAt = detail?.createdAt ? Date.parse(detail.createdAt) : NaN;
+  return {
+    idx: -1, // not on the list — named directly
+    mint,
+    symbol: detail?.symbol ?? mintSymbol(mint),
+    name: detail?.name ?? detail?.symbol ?? mint.slice(0, 8),
+    priceUsd: price,
+    change24h: null,
+    change1h: null,
+    change5m: null,
+    liquidityUsd: 0, // unknown here; routability is proven by the swap quote itself
+    mcapUsd: null,
+    organicScore: detail?.organicScore ?? null,
+    holders: detail?.holderCount ?? null,
+    vol5mUsd: null,
+    vol1hUsd: null,
+    netBuyers5m: null,
+    traders1h: null,
+    holderChange1hPct: null,
+    ageHours: Number.isFinite(createdAt) ? Math.max(0, (Date.now() - createdAt) / 3_600_000) : null,
+    topHoldersPct: detail?.topHoldersPct ?? null,
+    launchpad: null,
+    fresh: false,
+  };
 }
 
 async function mintDecimals(mint: string): Promise<number> {

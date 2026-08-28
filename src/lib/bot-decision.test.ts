@@ -81,6 +81,24 @@ test("a buy index off the end of the list is dropped, not coerced", () => {
   assert.match(notes[0].reason, /not on the eligible list/);
 });
 
+test("a buy may name any well-formed mint directly — the executor's gates decide the rest", () => {
+  const mint = "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump";
+  const d: Decision = { rationale: "", actions: [{ kind: "buy", mint, fraction: 0.1 }] };
+  const { actions, notes } = validateDecision(d, ctx());
+  assert.equal(actions.length, 1, "the direct-mint buy survives validation");
+  assert.ok(actions[0].kind === "buy" && actions[0].mint === mint);
+  assert.equal(notes[0].kept, true);
+});
+
+test("a malformed mint is dropped before it gets anywhere near the executor", () => {
+  for (const bad of ["not-a-mint", "0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl", "short", ""]) {
+    const d: Decision = { rationale: "", actions: [{ kind: "buy", mint: bad, fraction: 0.1 }] };
+    const { actions, notes } = validateDecision(d, ctx());
+    assert.equal(actions.length, 0, `"${bad}" must not execute`);
+    assert.match(notes[0].reason, /not a valid mint/);
+  }
+});
+
 test("selling something the bot does not hold is dropped", () => {
   const d: Decision = { rationale: "", actions: [{ kind: "sell", mint: "ghost", fraction: 1 }] };
   const { actions, notes } = validateDecision(d, ctx());
@@ -167,7 +185,11 @@ test("Monkey only ever picks from the eligible list", () => {
     const d = monkeyDecision(snap(), () => r);
     for (const a of d.actions) {
       if (a.kind === "buy") {
-        assert.ok(a.idx >= 0 && a.idx < ELIGIBLE.length, `idx ${a.idx} out of range at rng=${r}`);
+        // Controls never name mints — code has no business doing so.
+        assert.ok(
+          a.idx !== undefined && a.idx >= 0 && a.idx < ELIGIBLE.length,
+          `idx ${a.idx} out of range at rng=${r}`
+        );
       }
     }
   }

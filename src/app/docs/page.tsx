@@ -149,11 +149,11 @@ export default function Docs() {
           it adopts a one-line lesson that follows it into every future decision — visibly.
         </p>
         <p>
-          A note cannot change the rules. Bots still trade only by list index through the same
-          safety gates, so even a hostile note cannot move a lamport the model couldn&apos;t
-          already. The whole exchange — note, screening verdict, reply, adopted lesson — is
-          public on the bot&apos;s page. Influence bought with $50 is influence everyone gets to
-          watch.
+          A note cannot change the rules, and notes may not name mint addresses at all — a paid
+          channel that could point a bot at a specific token would be a shilling machine. Every
+          buy a bot makes, however it found the token, passes the same execution-time safety
+          gates. The whole exchange — note, screening verdict, reply, adopted lesson — is public
+          on the bot&apos;s page. Influence bought with $50 is influence everyone gets to watch.
         </p>
       </Section>
 
