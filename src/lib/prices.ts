@@ -32,27 +32,25 @@ export type MarketOverview = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __mbPriceCache: Map<string, CacheEntry<LivePrice>> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __mbStatsCache: Map<string, CacheEntry<MarketStats>> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __mbHistoryCache: Map<string, CacheEntry<SeriesPoint[]>> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __mbCgQueue: Promise<unknown> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __mbMarketsCache: Map<string, CacheEntry<Record<string, MarketOverview>>> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __mbPriceInFlight:
     | Map<string, Promise<Record<string, { usdPrice: number; priceChange24h?: number }>>>
     | undefined;
-  // eslint-disable-next-line no-var
-  var __mbMintHistoryCache: Map<string, CacheEntry<SeriesPoint[]>> | undefined;
+   
 }
 
 const priceCache = (globalThis.__mbPriceCache ??= new Map());
 const priceInFlight = (globalThis.__mbPriceInFlight ??= new Map());
-const mintHistoryCache = (globalThis.__mbMintHistoryCache ??= new Map());
 const statsCache = (globalThis.__mbStatsCache ??= new Map());
 const historyCache = (globalThis.__mbHistoryCache ??= new Map());
 
@@ -68,7 +66,7 @@ const PRICE_TTL = 60_000; // was 30s — halving the refetch rate halves the 429
  */
 const JUP_GAP_MS = 350;
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __mbJupQueue: Promise<unknown> | undefined;
 }
 
@@ -246,7 +244,7 @@ export async function getMarketStats(mints: string[]): Promise<Record<string, Ma
  * Keyless stays conservatively serialized.
  */
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __mbCgPro: boolean | undefined;
 }
 
@@ -335,7 +333,7 @@ export type TokenDetail = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __mbDetailCache: Map<string, CacheEntry<TokenDetail>> | undefined;
 }
 const detailCache = (globalThis.__mbDetailCache ??= new Map());
@@ -388,5 +386,4 @@ export async function getTokenDetail(mint: string): Promise<TokenDetail | null> 
   }
 }
 
-const MARKETS_TTL = 15 * 60_000;
 

@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __aDb: DatabaseSync | undefined;
 }
 
@@ -181,6 +181,24 @@ function createDb(): DatabaseSync {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_posts_dedupe ON bot_posts(bot_id, dedupe_key);
     CREATE INDEX IF NOT EXISTS idx_bot_posts_feed ON bot_posts(bot_id, ts DESC);
+    -- Notes from backers to the bot they back. Advisory data shown inside the
+    -- bot's snapshot — NEVER system-prompt text, never instructions. The whole
+    -- exchange is public: the note, the screening verdict, the bot's reply,
+    -- and any lesson it chose to adopt.
+    CREATE TABLE IF NOT EXISTS bot_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bot_id INTEGER NOT NULL REFERENCES bots(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      ts INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',  -- 'approved' | 'rejected'
+      reject_reason TEXT,
+      stake_usd REAL NOT NULL,                 -- backing at submission, for the record
+      response TEXT,                           -- the bot's public reply
+      response_ts INTEGER,
+      adopted_lesson TEXT                      -- set when the bot carried it into memory
+    );
+    CREATE INDEX IF NOT EXISTS idx_bot_notes ON bot_notes(bot_id, ts DESC);
     -- Exactly one process may run the wake-up loop.
     --
     -- Two schedulers means two wake-ups per hour, which means the same bot

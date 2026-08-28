@@ -97,8 +97,9 @@ export async function getBotNav(bot: BotRow): Promise<BotNav | null> {
     .prepare("SELECT mint, qty FROM bot_holdings WHERE bot_id = ? AND qty > 0")
     .all(bot.id) as { mint: string; qty: number }[];
 
-  const sol = await getSolBalance(bot.wallet);
-  const solLamports = Math.floor(sol * LAMPORTS_PER_SOL);
+  // getSolBalance is already lamports — multiplying by LAMPORTS_PER_SOL here
+  // once inflated every funded bot's NAV a billionfold.
+  const solLamports = await getSolBalance(bot.wallet);
 
   if (rows.length === 0) {
     const units = totalUnits(bot.id);
@@ -112,7 +113,13 @@ export async function getBotNav(bot: BotRow): Promise<BotNav | null> {
     };
   }
 
-  const prices = await getPrices([SOL_MINT, ...rows.map((r) => r.mint)]);
+  // This NAV prices deposits, withdrawals and trade sizing. A stale cached
+  // price is tolerable on a display path, but money must not settle against
+  // one — beyond five minutes a missing feed reads as "unpriceable" (null),
+  // which callers already refuse honestly.
+  const prices = await getPrices([SOL_MINT, ...rows.map((r) => r.mint)], {
+    maxStaleMs: 5 * 60_000,
+  });
   const solPrice = prices[SOL_MINT]?.usdPrice ?? 0;
   if (!(solPrice > 0)) return null; // No SOL price means no lamport valuation at all.
 
@@ -217,6 +224,11 @@ export function recordFlow(args: {
   const db = getDb();
   const ts = Date.now();
 
+  // Snapshot, flow row, unit move and reopening snapshot are one fact about
+  // one moment. A crash between them used to leave perf_index bracketing a
+  // flow that was never recorded — all four commit together or not at all.
+  db.exec("BEGIN IMMEDIATE");
+  try {
   // 1. Close the trading period at pre-flow NAV.
   writeSnapshot(bot, nav, ts);
 
@@ -270,6 +282,15 @@ export function recordFlow(args: {
     prevPerf,
     JSON.stringify(nav.holdings.map((h) => [h.mint, h.qty, h.priceUsd]))
   );
+  db.exec("COMMIT");
+  } catch (e) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* not in a transaction — nothing to roll back */
+    }
+    throw e;
+  }
 }
 
 /** Units a buy-in of `lamports` mints at the current price. */

@@ -58,22 +58,38 @@ export type EligibleToken = {
   priceUsd: number;
   change24h: number | null;
   change1h: number | null;
+  /** Price change over the last five minutes — momentum RIGHT NOW. */
+  change5m: number | null;
   liquidityUsd: number;
   mcapUsd: number | null;
   organicScore: number | null;
   holders: number | null;
+  /** Total (buy+sell) USD volume, last 5 minutes / last hour. The ratio of
+   *  the two is volume acceleration — the signal fast traders live on. */
+  vol5mUsd: number | null;
+  vol1hUsd: number | null;
+  /** Buyers minus sellers over the last 5 minutes — net pressure. */
+  netBuyers5m: number | null;
+  /** Unique wallets that traded it in the last hour. */
+  traders1h: number | null;
+  /** Holder-count change over the last hour, in percent. */
+  holderChange1hPct: number | null;
+  /** Hours since the token's first pool. Null when the feed omits it. */
+  ageHours: number | null;
+  /** Share of supply held by the top wallets, percent. Concentration tell. */
+  topHoldersPct: number | null;
   /** "pump.fun", "bonk", … or null for an established listing. */
   launchpad: string | null;
-  /** True for a token from the fresh-launch feed. These mostly go to zero. */
+  /** True when the first pool is under 24h old — launch-window risk applies. */
   fresh: boolean;
 };
 
 type SafetyVerdict = { ok: boolean; reason: string | null; ts: number };
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __aSafety: Map<string, SafetyVerdict> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __aList: { list: EligibleToken[]; ts: number } | undefined;
 }
 
@@ -145,6 +161,18 @@ export async function checkSafety(mint: string): Promise<SafetyVerdict> {
   return v;
 }
 
+type JupStats = {
+  priceChange?: number;
+  holderChange?: number;
+  volumeChange?: number;
+  buyVolume?: number;
+  sellVolume?: number;
+  numBuys?: number;
+  numSells?: number;
+  numTraders?: number;
+  numNetBuyers?: number;
+};
+
 type JupToken = {
   id: string;
   symbol?: string;
@@ -155,18 +183,30 @@ type JupToken = {
   mcap?: number;
   holderCount?: number;
   launchpad?: string | null;
-  stats1h?: { priceChange?: number };
-  stats24h?: { priceChange?: number };
+  firstPool?: { createdAt?: string };
+  graduatedAt?: string | null;
+  audit?: { topHoldersPercentage?: number; devBalancePercentage?: number };
+  stats5m?: JupStats;
+  stats1h?: JupStats;
+  stats24h?: JupStats;
 };
 
-const SOURCES: { path: string; fresh: boolean }[] = [
-  // Jupiter feeds (no API key required)
-  { path: "tokens/v2/recent", fresh: true },
-  { path: "tokens/v2/toptrending/24h?limit=100", fresh: false },
-  { path: "tokens/v2/toporganicscore/24h?limit=100", fresh: false },
-  // Direct pump.fun API - catches tokens Jupiter hasn't indexed yet
-  { path: "https://api.solanaapis.net/pumpfun/new-tokens?limit=200", fresh: true },
-  { path: "https://api.solanaapis.net/pumpfun/trending?limit=100", fresh: false },
+// Every keyless Jupiter v2 discovery feed, every interval. tokens/v2/recent
+// carries fresh pump.fun launches minutes after deploy, which is as early as
+// anything a bot could actually SWAP — a mint Jupiter cannot route is not
+// tradeable regardless of which feed lists it. (Two direct pump.fun feeds
+// used to sit here too, but their items use different field names and every
+// one was silently dropped by the filters below: zero contribution.)
+// Verified 2026-08: recent caps at 30 items server-side, the rest at 100.
+const SOURCES: { path: string }[] = [
+  { path: "tokens/v2/recent?limit=100" },
+  { path: "tokens/v2/toptrending/5m?limit=100" },
+  { path: "tokens/v2/toptrending/1h?limit=100" },
+  { path: "tokens/v2/toptrending/24h?limit=100" },
+  { path: "tokens/v2/toptraded/1h?limit=100" },
+  { path: "tokens/v2/toptraded/24h?limit=100" },
+  { path: "tokens/v2/toporganicscore/1h?limit=100" },
+  { path: "tokens/v2/toporganicscore/24h?limit=100" },
 ];
 
 /**
@@ -206,9 +246,9 @@ async function fetchSource(path: string): Promise<JupToken[]> {
       cache: "no-store",
     });
     if (!res.ok) return [];
-    const data = (await res.json()) as JupToken[] | any;
+    const data = (await res.json()) as JupToken[] | { tokens?: JupToken[] };
     // Handle pump.fun API response format
-    if (data.tokens && Array.isArray(data.tokens)) {
+    if (!Array.isArray(data) && Array.isArray(data.tokens)) {
       return data.tokens;
     }
     return Array.isArray(data) ? data : [];
@@ -232,17 +272,16 @@ export async function buildEligibleList(force = false): Promise<EligibleToken[]>
 
   const results = await Promise.all(SOURCES.map((s) => fetchSource(s.path)));
 
-  const seen = new Map<string, { t: JupToken; fresh: boolean }>();
-  results.forEach((tokens, i) => {
+  const seen = new Map<string, JupToken>();
+  results.forEach((tokens) => {
     for (const t of tokens) {
       if (!t.id || t.id === SOL_MINT) continue; // SOL is the cash leg, not a position
-      if (!seen.has(t.id)) seen.set(t.id, { t, fresh: SOURCES[i].fresh });
+      if (!seen.has(t.id)) seen.set(t.id, t);
     }
   });
 
   const candidates = [...seen.values()].filter(
-    ({ t }) =>
-      (t.liquidity ?? 0) >= MIN_LIQUIDITY_USD && isMemecoin(t.symbol ?? "", t.name ?? "")
+    (t) => (t.liquidity ?? 0) >= MIN_LIQUIDITY_USD && isMemecoin(t.symbol ?? "", t.name ?? "")
   );
   // A silently half-built universe is the difference between "the bots can
   // trade Solana" and "the bots can trade whatever one feed happened to
@@ -255,10 +294,11 @@ export async function buildEligibleList(force = false): Promise<EligibleToken[]>
     throw new UniverseError("every token feed was unreachable");
   }
 
-  const prices = await getPrices(candidates.map(({ t }) => t.id));
+  const prices = await getPrices(candidates.map((t) => t.id));
 
+  const now = Date.now();
   const list: EligibleToken[] = [];
-  for (const { t, fresh } of candidates) {
+  for (const t of candidates) {
     // Prefer the live price feed, fall back to the listing's own figure.
     const price = prices[t.id]?.usdPrice ?? t.usdPrice;
     // Unpriceable means unvaluable, which means a position could never be
@@ -266,6 +306,12 @@ export async function buildEligibleList(force = false): Promise<EligibleToken[]>
     if (price === undefined || price === null || !Number.isFinite(price) || price <= 0) continue;
 
     if (t.symbol) rememberSymbol(t.id, t.symbol);
+
+    const createdAt = t.firstPool?.createdAt ? Date.parse(t.firstPool.createdAt) : NaN;
+    const ageHours = Number.isFinite(createdAt) ? Math.max(0, (now - createdAt) / 3_600_000) : null;
+    const vol5m = (t.stats5m?.buyVolume ?? 0) + (t.stats5m?.sellVolume ?? 0);
+    const vol1h = (t.stats1h?.buyVolume ?? 0) + (t.stats1h?.sellVolume ?? 0);
+
     list.push({
       idx: 0,
       mint: t.id,
@@ -274,19 +320,34 @@ export async function buildEligibleList(force = false): Promise<EligibleToken[]>
       priceUsd: price,
       change24h: prices[t.id]?.priceChange24h ?? t.stats24h?.priceChange ?? null,
       change1h: t.stats1h?.priceChange ?? null,
+      change5m: t.stats5m?.priceChange ?? null,
       liquidityUsd: t.liquidity ?? 0,
       mcapUsd: t.mcap ?? null,
       organicScore: t.organicScore ?? null,
       holders: t.holderCount ?? null,
+      vol5mUsd: t.stats5m ? vol5m : null,
+      vol1hUsd: t.stats1h ? vol1h : null,
+      netBuyers5m: t.stats5m?.numNetBuyers ?? null,
+      traders1h: t.stats1h?.numTraders ?? null,
+      holderChange1hPct: t.stats1h?.holderChange ?? null,
+      ageHours,
+      topHoldersPct: t.audit?.topHoldersPercentage ?? null,
       launchpad: t.launchpad ?? null,
-      fresh,
+      fresh: ageHours !== null && ageHours < 24,
     });
   }
 
-  // Deepest first, then indexed. The order is deterministic so every bot in
-  // the same hour is handed byte-identical input — that identity is the whole
-  // basis on which one bot's result can be compared against another's.
-  list.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+  // Hottest first — the tokens moving money RIGHT NOW top the list, which is
+  // where a momentum trader's eyes go. Ties break on liquidity then mint so
+  // the order is fully deterministic: every bot in the same wake is handed
+  // byte-identical input, which is the whole basis on which one bot's result
+  // can be compared against another's.
+  list.sort(
+    (a, b) =>
+      (b.vol1hUsd ?? 0) - (a.vol1hUsd ?? 0) ||
+      b.liquidityUsd - a.liquidityUsd ||
+      (a.mint < b.mint ? -1 : 1)
+  );
   const capped = list.slice(0, MAX_LIST);
   capped.forEach((t, i) => (t.idx = i));
 

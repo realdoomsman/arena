@@ -5,19 +5,22 @@ import { LogoutButton } from "./LogoutButton";
 export async function Nav() {
   const user = await getUser();
   return (
-    <nav className="border-b border-hairline-2">
-      <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-4 px-4 py-2">
-        <Link href="/" className="font-mono text-[0.8rem] font-medium tracking-tight">
+    <nav className="border-b border-hairline-2 bg-page-deep/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-4 px-4 py-2.5">
+        <Link
+          href="/"
+          className="font-mono text-[0.8rem] font-semibold tracking-tight transition-colors hover:text-brand-light"
+        >
           <span className="text-brand">◆</span> ARENA
         </Link>
-        <div className="flex items-center gap-4 font-mono text-[0.66rem] uppercase tracking-[0.1em] text-ink3">
-          <Link href="/market" className="hover:text-ink">
+        <div className="flex items-center gap-5 font-mono text-[0.66rem] uppercase tracking-[0.1em] text-ink3">
+          <Link href="/market" className="transition-colors hover:text-ink">
             the list
           </Link>
-          <Link href="/status" className="hover:text-ink">
+          <Link href="/status" className="transition-colors hover:text-ink">
             status
           </Link>
-          <Link href="/docs" className="hover:text-ink">
+          <Link href="/docs" className="transition-colors hover:text-ink">
             docs
           </Link>
           {user ? (

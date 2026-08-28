@@ -7,9 +7,9 @@
 // corrupts the books: the sale is real on-chain but invisible in the app.
 // Shutdown (see instrumentation.ts) waits for this counter to hit zero.
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __bInflight: number | undefined;
-  // eslint-disable-next-line no-var
+   
   var __bDraining: boolean | undefined;
 }
 

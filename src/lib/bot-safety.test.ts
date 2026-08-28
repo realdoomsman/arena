@@ -130,3 +130,28 @@ test("a bot whose minute is now still wakes on time while catching up", () => {
 
   assert.deepEqual([...onTime, ...overdue], [15, 0], "on-time first, then one straggler");
 });
+
+test("ARENA_WAKES_PER_HOUR only accepts divisors of 60, and compresses the grid", async () => {
+  const { wakesPerHour } = await import("./bot-scheduler");
+
+  const prev = process.env.ARENA_WAKES_PER_HOUR;
+  try {
+    delete process.env.ARENA_WAKES_PER_HOUR;
+    assert.equal(wakesPerHour(), 1, "default is the original hourly cadence");
+    process.env.ARENA_WAKES_PER_HOUR = "4";
+    assert.equal(wakesPerHour(), 4);
+    process.env.ARENA_WAKES_PER_HOUR = "7";
+    assert.equal(wakesPerHour(), 1, "a ragged grid falls back to hourly rather than drifting");
+
+    // The grid: at 4 wakes/hour a bot with slot 20 wakes at :05, :20, :35, :50
+    // — its stagger offset survives, repeated every interval.
+    const interval = 60 / 4;
+    const base = 20 % interval;
+    const minutes = [];
+    for (let m = base; m < 60; m += interval) minutes.push(m);
+    assert.deepEqual(minutes, [5, 20, 35, 50]);
+  } finally {
+    if (prev === undefined) delete process.env.ARENA_WAKES_PER_HOUR;
+    else process.env.ARENA_WAKES_PER_HOUR = prev;
+  }
+});

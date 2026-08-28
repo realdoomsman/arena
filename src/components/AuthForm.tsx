@@ -58,13 +58,13 @@ export function AuthForm() {
       />
 
       {error && (
-        <p className="border-l-2 border-bad bg-card px-3 py-2 text-sm text-ink2">{error}</p>
+        <p className="rounded-lg border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-ink2">{error}</p>
       )}
 
       <button
         type="submit"
         disabled={busy}
-        className="mt-2 bg-brand px-4 py-2.5 font-display text-sm font-semibold tracking-tight text-page transition-colors hover:bg-brand-dim disabled:opacity-50"
+        className="btn-primary mt-2 rounded-xl px-4 py-2.5 font-display text-sm tracking-tight disabled:opacity-50"
       >
         {busy ? "Working…" : mode === "login" ? "Sign in" : "Create account"}
       </button>
@@ -104,7 +104,7 @@ function Field({
         value={value}
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
-        className="border border-hairline-2 bg-card px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+        className="rounded-lg border border-hairline-2 bg-card px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand"
       />
     </label>
   );

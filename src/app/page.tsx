@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getArenaFeed, getBotStatuses, type FeedItem } from "@/lib/arena-feed";
-import { buildEligibleList } from "@/lib/bot-universe";
+import { buildEligibleList, type EligibleToken } from "@/lib/bot-universe";
 import { getBotReturn, totalUnits, listBots } from "@/lib/bot-nav";
 import { treasuryBalanceLamports } from "@/lib/treasury";
 import { getPrices } from "@/lib/prices";
@@ -8,6 +8,9 @@ import { SOL_MINT } from "@/lib/wallets";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { Avatar } from "@/components/Avatar";
 import { LiveTick } from "@/components/LiveTick";
+import { Leaderboard } from "@/components/Leaderboard";
+import { Scroller } from "@/components/Scroller";
+import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,59 @@ function Pct({ v }: { v: number | null }) {
   );
 }
 
+function FeedCard({ card }: { card: NonNullable<FeedItem["card"]> }) {
+  if (card.type === "trade") {
+    return (
+      <div className="mt-3 flex items-center gap-3 rounded-lg border border-hairline bg-card2/40 px-3 py-2">
+        <span className={`badge ${card.side === "buy" ? "badge-success" : "badge-danger"}`}>
+          {card.side}
+        </span>
+        <span className="num text-sm text-ink">{card.sol.toFixed(3)} SOL</span>
+        <span className="font-medium text-sm text-ink2">{card.symbol}</span>
+        <a
+          href={`https://solscan.io/tx/${card.signature}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="th ml-auto text-ink3 hover:text-brand transition-colors"
+        >
+          solscan ↗
+        </a>
+      </div>
+    );
+  }
+  if (card.type === "flow") {
+    return (
+      <div className="mt-3 flex items-center gap-3 rounded-lg border border-hairline bg-card2/40 px-3 py-2">
+        <span className="badge badge-primary">{card.kind}</span>
+        <span className="num text-sm text-ink">{card.sol.toFixed(3)} SOL</span>
+        {card.signature && (
+          <a
+            href={`https://solscan.io/tx/${card.signature}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="th ml-auto text-ink3 hover:text-brand transition-colors"
+          >
+            solscan ↗
+          </a>
+        )}
+      </div>
+    );
+  }
+  // decision
+  return (
+    <Link
+      href={card.href}
+      className="mt-3 flex items-center gap-3 rounded-lg border border-hairline bg-card2/40 px-3 py-2 hover:border-hairline-2 transition-colors"
+    >
+      <span className={`badge ${card.held ? "" : "badge-primary"}`}>
+        {card.held ? "held" : `${card.actions} action${card.actions === 1 ? "" : "s"}`}
+      </span>
+      {card.refused > 0 && <span className="badge badge-warning">{card.refused} refused</span>}
+      <span className="th ml-auto text-ink3">full context →</span>
+    </Link>
+  );
+}
+
 function Message({
   item,
   showHead,
@@ -32,7 +88,7 @@ function Message({
   showHead: boolean;
   dayLabel: string | null;
 }) {
-  const { Avatar: BotAvatar, persona } = item;
+  const isSystem = item.botSlug === null;
   return (
     <li className="animate-fade-in">
       {dayLabel && (
@@ -45,10 +101,10 @@ function Message({
         </div>
       )}
       <div className="card card-glass p-6 interactive">
-        {showHead && (
+        {showHead && !isSystem && (
           <div className="flex items-center gap-3 mb-4">
             <Link href={`/bot/${item.botSlug}`}>
-              <BotAvatar slug={item.botSlug} name={item.botName} color={persona.color} size={32} />
+              <Avatar slug={item.botSlug!} name={item.botName ?? item.botSlug!} color={item.color} size={32} />
             </Link>
             <div className="flex items-center gap-3 flex-1">
               <Link
@@ -58,23 +114,36 @@ function Message({
                 {item.botName}
               </Link>
               <span className="th">{new Date(item.ts).toISOString().slice(11, 16)}</span>
-              <span className={`badge ${
-                item.kind === 'trade' ? 'badge-success' :
-                item.kind === 'reflection' ? 'badge-primary' :
-                ''
-              }`}>
+              <span
+                className={`badge ${
+                  item.kind === "trade"
+                    ? "badge-success"
+                    : item.kind === "decision"
+                      ? "badge-primary"
+                      : item.kind === "flow"
+                        ? "badge-warning"
+                        : ""
+                }`}
+              >
                 {item.kind}
               </span>
             </div>
           </div>
         )}
+        {showHead && isSystem && (
+          <div className="flex items-center gap-3 mb-4">
+            <span className="th">system</span>
+            <span className="th">{new Date(item.ts).toISOString().slice(11, 16)}</span>
+          </div>
+        )}
         <p className="text-ink2 leading-relaxed">{item.text}</p>
+        {item.card && <FeedCard card={item.card} />}
       </div>
     </li>
   );
 }
 
-function Now({ eligible, funded }: { eligible: any[]; funded: number }) {
+function Now({ eligible, funded }: { eligible: EligibleToken[]; funded: number }) {
   return (
     <div className="card card-glass p-6 mt-8">
       <div className="flex items-center justify-between mb-4">
@@ -143,8 +212,18 @@ export default async function Home() {
   const funded = bots.filter((b) => totalUnits(b.id) > 0).length;
   const returns = new Map(bots.map((b) => [b.slug, getBotReturn(b.id, 7 * DAY)]));
 
+  // Real counts for the stats rail — the feed length is not a decision count,
+  // and printing it as one was a small lie the rest of the site never tells.
+  const db = getDb();
+  const decisionCount = (db.prepare("SELECT COUNT(*) AS n FROM bot_decisions").get() as { n: number }).n;
+  const tradeCount = (db.prepare("SELECT COUNT(*) AS n FROM bot_trades").get() as { n: number }).n;
+  const openPositions = (
+    db.prepare("SELECT COUNT(*) AS n FROM bot_holdings WHERE qty > 0").get() as { n: number }
+  ).n;
+
   return (
-    <div className="min-h-screen bg-page-deep relative overflow-hidden">
+    <Scroller>
+    <div className="min-h-full bg-page-deep relative">
       {/* Animated background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-gradient-radial" />
@@ -204,6 +283,11 @@ export default async function Home() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Leaderboard — the product's one claim, above the fold of the room */}
+        <section className="max-w-7xl mx-auto px-5 pb-10">
+          <Leaderboard />
         </section>
 
         {/* Main Content */}
@@ -335,12 +419,16 @@ export default async function Home() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="th">Total Decisions</span>
-                    <span className="num font-semibold text-ink">{feed.length}</span>
+                    <span className="th">Decisions</span>
+                    <span className="num font-semibold text-ink">{decisionCount}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="th">Active Trades</span>
-                    <span className="num font-semibold text-ink">{funded}</span>
+                    <span className="th">Trades Filled</span>
+                    <span className="num font-semibold text-ink">{tradeCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="th">Open Positions</span>
+                    <span className="num font-semibold text-ink">{openPositions}</span>
                   </div>
                 </div>
               </div>
@@ -358,5 +446,6 @@ export default async function Home() {
         </footer>
       </div>
     </div>
+    </Scroller>
   );
 }

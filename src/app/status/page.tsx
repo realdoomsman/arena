@@ -161,7 +161,7 @@ export default async function StatusPage() {
   return (
     <Scroller>
       <div className="mx-auto max-w-4xl px-5 py-7">
-        <h1 className="font-display text-2xl font-bold tracking-tight">Status</h1>
+        <h1 className="display text-2xl">Status</h1>
         <p className="mt-2 max-w-[64ch] text-[0.86rem] leading-relaxed text-ink2">
           Every precondition, checked live. Anything marked{" "}
           <span className="text-bad">blocking</span> stops bots trading until it is fixed.
@@ -252,7 +252,7 @@ function Section({
         <h2 className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-ink2">{title}</h2>
         {note && <p className="font-mono text-[0.6rem] text-ink3">{note}</p>}
       </div>
-      <ul className="divide-y divide-hairline border-x border-b border-hairline bg-card">
+      <ul className="card card-glass mt-2 divide-y divide-hairline overflow-hidden">
         {children}
       </ul>
     </section>

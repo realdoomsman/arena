@@ -33,9 +33,9 @@ const LEASE_TTL_MS = 5 * 60_000;
 const HOLDER = randomUUID();
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __aScheduler: ReturnType<typeof setInterval> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __aSchedulerBusy: boolean | undefined;
 }
 
@@ -44,6 +44,30 @@ function hourKey(d = new Date()): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
     d.getUTCDate()
   ).padStart(2, "0")}T${String(d.getUTCHours()).padStart(2, "0")}`;
+}
+
+/**
+ * How many times per hour each bot wakes. 1 (hourly, the default) keeps the
+ * original cadence; higher values put the fleet on memecoin time — a fresh
+ * launch's whole life can fit inside one hourly gap. Must divide 60 so the
+ * schedule is a clean grid; anything else falls back to 1 loudly.
+ */
+export function wakesPerHour(): number {
+  const raw = Number(process.env.ARENA_WAKES_PER_HOUR ?? 1);
+  if ([1, 2, 3, 4, 6, 12].includes(raw)) return raw;
+  if (process.env.ARENA_WAKES_PER_HOUR) {
+    console.warn(`[scheduler] ARENA_WAKES_PER_HOUR=${process.env.ARENA_WAKES_PER_HOUR} is not a divisor of 60 — using 1`);
+  }
+  return 1;
+}
+
+/**
+ * The idempotency key for one scheduled wake. At one wake per hour it stays
+ * the plain hour key (so history and in-flight rows keep their meaning); at
+ * higher cadences the scheduled minute joins it, one key per grid slot.
+ */
+function wakeKey(key: string, scheduledMinute: number, wph: number): string {
+  return wph === 1 ? key : `${key}:${String(scheduledMinute).padStart(2, "0")}`;
 }
 
 /**
@@ -95,31 +119,62 @@ export async function tick(now = new Date()): Promise<TickResult> {
   const woke: string[] = [];
   let skipped = 0;
 
-  // A bot is due if its minute has ARRIVED OR PASSED this hour and it has not
-  // run yet. Matching `slot === minute` exactly meant a single missed tick — a
-  // slow previous tick, a restart, a paused VM — silently cost that bot its
-  // whole hour, with nothing anywhere recording that it had been skipped.
+  // A bot is due if a scheduled minute has ARRIVED OR PASSED this hour and
+  // that wake has not run yet. Matching the minute exactly meant a single
+  // missed tick — a slow previous tick, a restart, a paused VM — silently cost
+  // that bot its whole slot, with nothing anywhere recording the skip.
   //
   // But catching up on everything at once would fire the whole backlog inside
-  // one tick and destroy the five-minute stagger that stops the fleet piling
-  // into the same thin pool. So: every bot whose minute is exactly now, plus
-  // AT MOST ONE that is overdue.
-  const pending = wakeableBots().filter((b) => {
-    if (b.slot > minute) return false;
-    const already = db
-      .prepare("SELECT 1 FROM bot_wakes WHERE bot_id = ? AND hour_key = ?")
-      .get(b.id, key);
-    if (already) skipped++;
-    return !already;
-  });
+  // one tick and destroy the stagger that stops the fleet piling into the same
+  // thin pool. So: every wake whose minute is exactly now, plus AT MOST ONE
+  // that is overdue.
+  //
+  // At ARENA_WAKES_PER_HOUR > 1 each bot's schedule is `slot mod interval`,
+  // repeating every `interval` minutes — the stagger survives, compressed.
+  const wph = wakesPerHour();
+  const interval = 60 / wph;
 
-  const onTime = pending.filter((b) => b.slot === minute);
-  const overdue = pending.filter((b) => b.slot < minute).slice(0, 1);
+  type Due = { bot: ReturnType<typeof wakeableBots>[number]; scheduledMinute: number };
+  const onTime: Due[] = [];
+  const overdueCandidates: Due[] = [];
+  for (const b of wakeableBots()) {
+    const base = b.slot % interval;
+    for (let m = base; m <= minute; m += interval) {
+      const already = db
+        .prepare("SELECT 1 FROM bot_wakes WHERE bot_id = ? AND hour_key = ?")
+        .get(b.id, wakeKey(key, m, wph));
+      if (already) {
+        skipped++;
+        continue;
+      }
+      if (m === minute) onTime.push({ bot: b, scheduledMinute: m });
+      else overdueCandidates.push({ bot: b, scheduledMinute: m });
+    }
+  }
+  // For an overdue bot, run only its LATEST missed slot — replaying every
+  // missed decision against the current market would be trading the past.
+  const latestMissed = new Map<number, Due>();
+  for (const d of overdueCandidates) {
+    const prev = latestMissed.get(d.bot.id);
+    if (!prev || d.scheduledMinute > prev.scheduledMinute) latestMissed.set(d.bot.id, d);
+  }
+  const overdue = [...latestMissed.values()].slice(0, 1);
 
-  for (const bot of [...onTime, ...overdue]) {
+  for (const { bot, scheduledMinute } of [...onTime, ...overdue]) {
+    // Renew the lease before EACH wake. One tick can hold several wakes, each
+    // a model call plus on-chain swaps — long enough to outlive the 5-minute
+    // TTL, at which point another process would take the lease and the same
+    // bot could wake twice. Losing the lease mid-tick means stop starting
+    // wakes, immediately.
+    if (!acquireLock()) {
+      console.warn("[scheduler] lease lost mid-tick — starting no further wakes");
+      break;
+    }
+
+    const wk = wakeKey(key, scheduledMinute, wph);
     db.prepare("INSERT INTO bot_wakes (bot_id, hour_key, ran_at) VALUES (?, ?, ?)").run(
       bot.id,
-      key,
+      wk,
       Date.now()
     );
 
@@ -129,17 +184,23 @@ export async function tick(now = new Date()): Promise<TickResult> {
         result.decisionId,
         result.error,
         bot.id,
-        key
+        wk
       );
       woke.push(`${bot.slug}${result.error ? ` (${result.error})` : ` +${result.executed}`}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      db.prepare("UPDATE bot_wakes SET error = ? WHERE bot_id = ? AND hour_key = ?").run(msg, bot.id, key);
+      db.prepare("UPDATE bot_wakes SET error = ? WHERE bot_id = ? AND hour_key = ?").run(msg, bot.id, wk);
       console.error(`[scheduler] ${bot.slug} wake threw:`, msg);
       woke.push(`${bot.slug} (threw: ${msg})`);
     }
 
     await reflectIfDue(bot).catch((e) => console.error(`[scheduler] ${bot.slug} reflection:`, e));
+
+    // Answer backer notes on the same clock as everything else. Best-effort:
+    // a failed reply leaves the note unanswered for the next wake, never
+    // blocks trading.
+    const { reviewNotes } = await import("./bot-notes");
+    await reviewNotes(bot).catch((e) => console.error(`[scheduler] ${bot.slug} notes:`, e));
   }
 
   // Speaking is best-effort and never blocks trading.

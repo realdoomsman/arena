@@ -6,22 +6,16 @@
 // under FinCEN's 2019 CVC guidance, non-custodial software that never controls
 // user funds is not a money transmitter.
 //
-// Fees:
-//   • The platform swap fee is NOT taken through Jupiter. Jupiter charges its
-//     platform fee in the OUTPUT mint, which on a buy is the memecoin — that
-//     would need a referral token account per mint (67+ and growing), and any
-//     swap whose account was missing would simply fail. Instead the fee is
-//     skimmed in SOL by the caller (see lib/fees.ts): one currency, one
-//     destination, works for every token including ones listed minutes ago.
-//   • the 0.5 SOL basket-creation fee is a plain SOL transfer the user signs.
+// Fees: Arena takes NO platform fee on bot swaps. The house earns creator-fee
+// revenue elsewhere and injects it into bot wallets (see bot-funding.ts) —
+// skimming trades would make every bot's published return quietly worse than
+// its real one, which is the opposite of what a leaderboard is for.
 import { SOL_MINT } from "./wallets";
 
 const JUP = process.env.JUPITER_API_KEY ? "https://api.jup.ag" : "https://lite-api.jup.ag";
 const JUP_HEADERS: Record<string, string> = process.env.JUPITER_API_KEY
   ? { "x-api-key": process.env.JUPITER_API_KEY }
   : {};
-
-export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 50); // 0.50% default
 
 export class SwapError extends Error {}
 

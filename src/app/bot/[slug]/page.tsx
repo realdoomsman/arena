@@ -9,15 +9,38 @@ import { injectionHistory } from "@/lib/bot-funding";
 import { MODEL_PRICE } from "@/lib/bots";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { getUser } from "@/lib/auth";
-import { mintSymbol } from "@/lib/wallets";
+import { mintSymbol, SOL_MINT } from "@/lib/wallets";
+import { getPrices } from "@/lib/prices";
 import { BackBot } from "@/components/BackBot";
 import { EquityCurve } from "@/components/EquityCurve";
 import { Avatar } from "@/components/Avatar";
+import { NoteBox } from "@/components/NoteBox";
 import { Scroller } from "@/components/Scroller";
+import { notesForBot, backerStakeUsd, MIN_NOTE_USD, MAX_NOTE_CHARS } from "@/lib/bot-notes";
 
 export const dynamic = "force-dynamic";
 
 const DAY = 24 * 3600_000;
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const bot = getBot(slug);
+  if (!bot) return { title: "Not found — Arena" };
+  return {
+    title: `${bot.name} — Arena`,
+    description: `${bot.name} trades a real Solana memecoin book. Every decision, trade and lesson published.`,
+  };
+}
+
+/** Same rule the status page uses: a model bot without its provider key is asleep. */
+const PROVIDER_KEY: Record<string, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  google: "GOOGLE_API_KEY",
+  xai: "XAI_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
+  alibaba: "DASHSCOPE_API_KEY",
+};
 
 type DecisionRow = {
   id: number;
@@ -133,8 +156,15 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
   const user = await getUser();
   const myUnits = user ? getUserUnits(user.id, bot.id).units : 0;
 
+  // published_at is the anti-front-running embargo: a decision is readable
+  // only after its swaps landed. Errored wakes never trade, so they show at
+  // once.
   const decisions = db
-    .prepare("SELECT * FROM bot_decisions WHERE bot_id = ? ORDER BY ts DESC LIMIT 50")
+    .prepare(
+      `SELECT * FROM bot_decisions
+       WHERE bot_id = ? AND (published_at IS NOT NULL OR error IS NOT NULL)
+       ORDER BY ts DESC LIMIT 50`
+    )
     .all(bot.id) as DecisionRow[];
   const trades = db
     .prepare("SELECT * FROM bot_trades WHERE bot_id = ? ORDER BY ts DESC LIMIT 50")
@@ -147,6 +177,8 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
   const feed = getFeed(bot.id, 30);
   const lessons = getLessons(bot.id, 15);
+  const notes = notesForBot(bot.id, 30);
+  const myStakeUsd = user ? ((await backerStakeUsd(user.id, bot).catch(() => 0)) ?? 0) : 0;
   const injections = injectionHistory(bot.id);
   const units = totalUnits(bot.id);
   const aum = botAum(bot.id);
@@ -154,15 +186,52 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
   const d30 = getBotReturn(bot.id, 30 * DAY);
   const d90 = getBotReturn(bot.id, 90 * DAY);
   const price = MODEL_PRICE[bot.model];
-  const started = units > 0 || decisions.length > 0;
-  const spent = decisions.reduce((a, d) => a + (d.cost_usd ?? 0), 0);
 
-  const totalTrades = trades.length;
-  const buys = trades.filter(t => t.side === 'buy').length;
-  const sells = trades.filter(t => t.side === 'sell').length;
-  const avgLatency = decisions
-    .filter(d => d.latency_ms !== null)
-    .reduce((a, d) => a + (d.latency_ms ?? 0), 0) / decisions.filter(d => d.latency_ms !== null).length;
+  // The stat cards say "lifetime", so they aggregate the whole table — the
+  // LIMIT 50 above is only for the lists underneath.
+  const decStats = db
+    .prepare(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(cost_usd), 0) AS spent, AVG(latency_ms) AS avgLat
+       FROM bot_decisions WHERE bot_id = ? AND (published_at IS NOT NULL OR error IS NOT NULL)`
+    )
+    .get(bot.id) as { n: number; spent: number; avgLat: number | null };
+  const tradeStats = db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              COALESCE(SUM(side = 'buy'), 0) AS buys,
+              COALESCE(SUM(side = 'sell'), 0) AS sells
+       FROM bot_trades WHERE bot_id = ?`
+    )
+    .get(bot.id) as { n: number; buys: number; sells: number };
+
+  const started = units > 0 || decStats.n > 0;
+  const spent = decStats.spent;
+  const totalTrades = tradeStats.n;
+  const buys = tradeStats.buys;
+  const sells = tradeStats.sells;
+  const avgLatency = decStats.avgLat;
+
+  // What the backing is WORTH: units priced at the latest snapshot's
+  // nav_per_unit. Raw units are lamports only at the genesis price of 1.
+  const lastUnitPrice = (
+    db
+      .prepare("SELECT nav_per_unit FROM bot_snapshots WHERE bot_id = ? ORDER BY ts DESC, id DESC LIMIT 1")
+      .get(bot.id) as { nav_per_unit: number } | undefined
+  )?.nav_per_unit;
+  const backingSol = (units * (lastUnitPrice ?? 1)) / LAMPORTS_PER_SOL;
+
+  // Live prices for held positions, so the Value column is real or absent —
+  // never invented. A missing price renders as "—", not a guess.
+  const posPrices =
+    positions.length > 0
+      ? await getPrices([SOL_MINT, ...positions.map((p) => p.mint)]).catch(
+          () => ({}) as Record<string, { usdPrice: number }>
+        )
+      : ({} as Record<string, { usdPrice: number }>);
+  const posSolUsd = posPrices[SOL_MINT]?.usdPrice ?? null;
+
+  const keyEnv = bot.provider === "none" ? null : (PROVIDER_KEY[bot.provider] ?? null);
+  const live = (!keyEnv || Boolean(process.env[keyEnv])) && Boolean(bot.enabled);
 
   return (
     <Scroller>
@@ -215,8 +284,14 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                     </div>
                   </div>
                   <div className="mt-5 flex items-center justify-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-good animate-pulse-glow" />
-                    <span className="th text-good uppercase tracking-widest">Live Trading</span>
+                    <div
+                      className={`h-3 w-3 rounded-full ${live ? (units > 0 ? "bg-good animate-pulse-glow" : "bg-warn") : "bg-ink4"}`}
+                    />
+                    <span
+                      className={`th uppercase tracking-widest ${live ? (units > 0 ? "text-good" : "text-warn") : "text-ink4"}`}
+                    >
+                      {live ? (units > 0 ? "Live Trading" : "Awake · Unfunded") : "Asleep · No Key"}
+                    </span>
                   </div>
                 </div>
 
@@ -241,10 +316,19 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                   <div className="flex flex-wrap gap-2">
                     <span className="badge">{bot.kind === "control" ? "no model · code only" : bot.model}</span>
                     {price && (
-                      <span className="badge">${price.in}/$${price.out} per 1M</span>
+                      <span className="badge">${price.in} in · ${price.out} out per 1M tokens</span>
                     )}
                     <span className="badge">wakes at :{String(bot.slot).padStart(2, "0")}</span>
                   </div>
+                  <a
+                    href={`https://solscan.io/account/${bot.wallet}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 block break-all font-mono text-[0.68rem] text-ink3 transition-colors hover:text-brand"
+                    title="The bot's actual wallet — audit every claim on-chain"
+                  >
+                    {bot.wallet} ↗
+                  </a>
                 </div>
 
                 {/* Performance Card */}
@@ -275,7 +359,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                       <div className="pt-4 border-t border-hairline">
                         <div className="th mb-2">Total Backing</div>
                         <div className="display text-xl num text-ink">
-                          {units > 0 ? `${(units / LAMPORTS_PER_SOL).toFixed(2)} SOL` : "—"}
+                          {units > 0 ? `${backingSol.toFixed(2)} SOL` : "—"}
                         </div>
                         {aum.holders > 0 && (
                           <div className="th mt-1">{aum.holders} backer{aum.holders !== 1 ? "s" : ""}</div>
@@ -316,7 +400,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
             <div className="card card-glass p-6 text-center interactive">
               <div className="th mb-2">Decisions</div>
-              <div className="display text-3xl num">{decisions.length}</div>
+              <div className="display text-3xl num">{decStats.n}</div>
               <div className="th mt-1">lifetime</div>
             </div>
             <div className="card card-glass p-6 text-center interactive">
@@ -379,6 +463,65 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             )}
           </Section>
 
+          {/* Backer Notes */}
+          <Section
+            title="Backer Notes"
+            note={`$${MIN_NOTE_USD}+ backers can write to ${bot.name} — every note, verdict and reply is public`}
+          >
+            <div className="card card-glass p-6">
+              <NoteBox
+                slug={bot.slug}
+                botName={bot.name}
+                signedIn={Boolean(user)}
+                stakeUsd={myStakeUsd}
+                minUsd={MIN_NOTE_USD}
+                maxChars={MAX_NOTE_CHARS}
+              />
+            </div>
+            {notes.length > 0 && (
+              <div className="mt-4 space-y-4">
+                {notes.map((n) => (
+                  <div key={n.id} className="card card-glass p-6">
+                    <div className="mb-2 flex flex-wrap items-baseline gap-3 th">
+                      <span className="text-ink2">{n.username}</span>
+                      <span className="num">${n.stake_usd.toFixed(0)} backed</span>
+                      <span className="num">{new Date(n.ts).toISOString().slice(0, 10)}</span>
+                      {n.status === "rejected" && (
+                        <span className="badge badge-danger">screened out — {n.reject_reason}</span>
+                      )}
+                    </div>
+                    <p className={`leading-relaxed ${n.status === "rejected" ? "text-ink4 line-through" : "text-ink2"}`}>
+                      {n.text}
+                    </p>
+                    {n.response && (
+                      <div className="mt-4 flex gap-3 border-t border-hairline pt-4">
+                        <Avatar slug={bot.slug} name={bot.name} color={persona.color} size={28} />
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-baseline gap-3 th">
+                            <span style={{ color: persona.color }}>{bot.name}</span>
+                            {n.response_ts && (
+                              <span className="num">{new Date(n.response_ts).toISOString().slice(0, 10)}</span>
+                            )}
+                          </div>
+                          <p className="text-sm leading-relaxed text-ink2">{n.response}</p>
+                          {n.adopted_lesson && (
+                            <p className="mt-2 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-sm text-ink2">
+                              <span className="th text-brand">adopted into memory</span>{" "}
+                              {n.adopted_lesson}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {!n.response && n.status === "approved" && (
+                      <p className="mt-3 th">awaiting {bot.name}&apos;s next wake</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
           {/* Performance Track */}
           <Section title="Performance Track" note="perf_index only — fee injections raise unit value but are not performance">
             <div className="card card-glass p-6">
@@ -399,11 +542,17 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
             {positions.length === 0 ? (
               <Empty>{started ? "All cash." : "Never has."}</Empty>
             ) : (
-              <Table cols={["Token", "Quantity", "Cost Basis (SOL)", "Held For", "Value"]}>
+              <Table cols={["Token", "Quantity", "Cost Basis (SOL)", "Held For", "Value (SOL)", "P&L"]}>
                 {positions.map((p) => {
                   // eslint-disable-next-line react-hooks/purity
                   const heldHours = p.opened_at ? ((Date.now() - p.opened_at) / 3600_000) : 0;
-                  const currentValue = p.qty * 0.01;
+                  const priceUsd = posPrices[p.mint]?.usdPrice;
+                  const valueSol =
+                    posSolUsd && priceUsd !== undefined && Number.isFinite(priceUsd)
+                      ? (p.qty * priceUsd) / posSolUsd
+                      : null;
+                  const costSol = p.cost_lamports / LAMPORTS_PER_SOL;
+                  const pnlPct = valueSol !== null && costSol > 0 ? valueSol / costSol - 1 : null;
                   return (
                     <tr key={p.mint} className="table-row-hover">
                       <Td>
@@ -412,15 +561,22 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                           <span className="font-semibold text-ink">{mintSymbol(p.mint)}</span>
                         </div>
                       </Td>
-                      <Td right className="num">{p.qty.toPrecision(6)}</Td>
-                      <Td right className="num">{(p.cost_lamports / LAMPORTS_PER_SOL).toFixed(4)}</Td>
-                      <Td right muted className="num">
+                      <Td right>{p.qty.toPrecision(6)}</Td>
+                      <Td right>{costSol.toFixed(4)}</Td>
+                      <Td right muted>
                         {heldHours < 1 ? `${(heldHours * 60).toFixed(0)}m` :
                          heldHours < 24 ? `${heldHours.toFixed(1)}h` :
                          `${(heldHours / 24).toFixed(1)}d`}
                       </Td>
                       <td className="px-6 py-4 text-right font-semibold text-ink num">
-                        {currentValue.toFixed(4)}
+                        {valueSol === null ? "—" : valueSol.toFixed(4)}
+                      </td>
+                      <td
+                        className={`px-6 py-4 text-right font-semibold num ${
+                          pnlPct === null ? "text-ink3" : pnlPct >= 0 ? "text-good" : "text-bad"
+                        }`}
+                      >
+                        {pnlPct === null ? "—" : `${pnlPct >= 0 ? "+" : ""}${(pnlPct * 100).toFixed(1)}%`}
                       </td>
                     </tr>
                   );
@@ -456,12 +612,12 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
                                 ) : (
                                   <span className="badge badge-primary">{actionCount} action{actionCount !== 1 ? 's' : ''}</span>
                                 )}
-                                {d.latency_ms && (
+                                {d.latency_ms ? (
                                   <span>{(d.latency_ms / 1000).toFixed(1)}s</span>
-                                )}
-                                {d.cost_usd && (
+                                ) : null}
+                                {d.cost_usd ? (
                                   <span>${d.cost_usd.toFixed(3)}</span>
-                                )}
+                                ) : null}
                               </div>
                             </div>
                             <p className="text-ink2 leading-relaxed line-clamp-2">{d.rationale}</p>
@@ -534,7 +690,7 @@ export default async function BotPage({ params }: { params: Promise<{ slug: stri
 
           {/* Learning Log */}
           {bot.kind === "model" && (
-            <Section title="Learning Log" note="daily reflections — how {bot.name} improves over time">
+            <Section title="Learning Log" note={`daily reflections — how ${bot.name} improves over time`}>
               {lessons.length === 0 ? (
                 <Empty>No reflections yet.</Empty>
               ) : (

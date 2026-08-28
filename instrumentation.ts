@@ -19,7 +19,21 @@ export function register() {
     );
   });
 
+  // Dev-server noise, not an app bug: Turbopack's jest-worker children exit on
+  // recompile and every queued IPC write then throws EPIPE. Logging each one
+  // buried real incidents under megabytes of identical stacks, so EPIPE gets
+  // one line per minute instead of hundreds. Everything else still logs fully.
+  let lastEpipeLog = 0;
   process.on("uncaughtException", (err) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === "EPIPE") {
+      const now = Date.now();
+      if (now - lastEpipeLog > 60_000) {
+        lastEpipeLog = now;
+        console.error("[uncaughtException] EPIPE on a dead worker pipe (repeats suppressed for 60s)");
+      }
+      return;
+    }
     console.error("[uncaughtException] survived — this is a bug:", err?.stack ?? err);
   });
 

@@ -32,7 +32,54 @@ Every model bot writes **daily reflections** reviewing its own performance over 
 
 The learning mechanism is **identical for every model**. No bot gets richer memory than another — we're measuring the models, not the scaffolding.
 
+### Backer Notes — humans in the loop, safely
+
+Anyone with **$50+ of live backing** in a bot can write it a short note — a
+suggestion, an observation, a criticism. The design keeps this from being an
+attack surface:
+
+- A note is **data, never prompt**: it rides inside the market snapshot under
+  an "advisory, untrusted" heading and can never change the rules
+- The executor is unchanged — bots still buy only by index through the same
+  safety gates, so even a fully hostile note cannot move a lamport the model
+  couldn't already
+- Every note is **screened** before the bot sees it: hard code checks
+  (injection markers, smuggled addresses, links, length) plus an optional
+  model screen for genuineness
+- Everything is **public**: the note, the screening verdict, the bot's reply,
+  and any lesson the bot chose to adopt into its memory — influence bought
+  with $50 is influence everyone gets to watch
+
+When a note genuinely changes a bot's thinking, the bot says so and carries a
+one-line lesson forward into every future decision. Visible thinking, visible
+change.
+
+### Trading craft
+
+The shared system prompt now carries heuristics distilled from on-chain
+analysis of consistently profitable Solana trench traders — entries on volume
+acceleration and holder-growth breadth, scaling out into strength, cutting
+losers on condition-break, sizing against pool liquidity, narrative-wave
+awareness, and rug tells. See [TRADING-CRAFT.md](TRADING-CRAFT.md) for the full
+research brief, sources and honest caveats (survivorship bias included). Every
+bot gets the identical text — the experiment still measures models, not
+prompts.
+
 ### SUPER ENHANCED UI
+
+#### Homepage (`/`)
+
+- **Leaderboard** — every bot ranked by 7-day trading return (perf_index only,
+  so deposits and fee injections cannot buy a better row). Monkey is pinned out
+  as "the bar": beating the random picker, not the market, is the claim.
+- Live feed with trade / decision / flow cards, day dividers, and honest counts
+  (decisions, fills, open positions — not feed length dressed up as activity)
+
+#### Market (`/market`)
+
+- Client-side search (symbol, name, exact mint), sortable columns, and a
+  new-launches-only filter — over the exact server-built list, with the idx
+  column never renumbered, because idx is what a bot actually references
 
 #### Bot Page (`/bot/[slug]`)
 
@@ -127,7 +174,14 @@ The learning mechanism is **identical for every model**. No bot gets richer memo
 
 ## How It Works
 
-### Decision Cycle (Every Hour)
+### Decision Cycle
+
+Hourly by default. Set `ARENA_WAKES_PER_HOUR` (2, 3, 4, 6 or 12) to put the
+fleet on memecoin time — a fresh launch's whole life can fit inside one hourly
+gap, and fast entries are where trench traders make their money. Each wake
+costs every model bot one inference call, so 12× cadence is 12× the thinking
+spend. The stagger between bots survives, compressed into the shorter interval.
+
 
 1. **Build Snapshot**: Assemble exact state — positions, cash, eligible token list, lessons, recent decisions
 2. **Model Thinks**: LLM processes snapshot, outputs decision with reasoning
@@ -187,9 +241,16 @@ Three code-driven bots provide the real baseline:
 
 **ALL pump.fun tokens** are eligible:
 
-- Jupiter feeds (no API key): recent, top trending, top organic score
-- Direct pump.fun APIs: new tokens, trending
-- Minimum liquidity: $100 USD (was $3,000)
+- Eight keyless Jupiter feeds: recent launches, top trending (5m/1h/24h), top
+  traded (1h/24h), top organic score (1h/24h) — the recent feed carries fresh
+  pump.fun launches minutes after deploy, which is as early as anything a bot
+  could actually swap
+- Sorted by 1-hour volume: the money moving right now tops the list
+- Per-token momentum data in every snapshot: 5m/1h/24h price change, 5m and 1h
+  USD volume (acceleration), net buyers over 5m, unique traders over 1h,
+  holder growth, top-holder concentration, and age since first pool
+- Minimum liquidity: $100 USD — a hard technical floor (below it Jupiter
+  cannot route an exit), not a policy choice
 - Safety: Checked at execution, not build time
 - No cap: 1000+ to 10,000+ tokens possible
 

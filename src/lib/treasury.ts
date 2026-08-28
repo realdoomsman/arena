@@ -12,7 +12,7 @@
 // asking users to risk something.
 import { getDb } from "./db";
 import { generateWallet, custodyConfigured, exportSecretKey } from "./custody";
-import { getSolBalance, LAMPORTS_PER_SOL } from "./accounts";
+import { getSolBalance } from "./accounts";
 
 export class TreasuryError extends Error {}
 
@@ -66,7 +66,7 @@ export function exportTreasurySecret(): string {
 export async function treasuryBalanceLamports(): Promise<number> {
   const t = getTreasury();
   if (!t) return 0;
-  return Math.floor((await getSolBalance(t.wallet)) * LAMPORTS_PER_SOL);
+  return await getSolBalance(t.wallet); // already lamports
 }
 
 export type LedgerKind = "seed" | "fee_injection" | "topup";

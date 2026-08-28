@@ -127,5 +127,6 @@ export function wakeableBots(): BotRow[] {
 /** Every bot's public identity — safe to serialise; never includes the key. */
 export function publicBots(): Omit<BotRow, "encrypted_key">[] {
   const rows = getDb().prepare("SELECT * FROM bots ORDER BY slot").all() as BotRow[];
-  return rows.map(({ encrypted_key: _key, ...rest }) => rest);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- the discard IS the point
+  return rows.map(({ encrypted_key, ...rest }) => rest);
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { getAccountWallet, getSolBalance } from "@/lib/accounts";
+import { getAccountWallet, getSolBalance, LAMPORTS_PER_SOL } from "@/lib/accounts";
 import { myPositions } from "@/lib/bot-invest";
 
 export async function GET() {
@@ -13,7 +13,7 @@ export async function GET() {
   // Never return encryptedKey. It is the account.
   return NextResponse.json({
     address: wallet.address,
-    sol: await getSolBalance(wallet.address),
+    sol: (await getSolBalance(wallet.address)) / LAMPORTS_PER_SOL,
     positions: myPositions(user.id),
   });
 }

@@ -7,11 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --import ./scripts/ts-resolve-register.mjs --test src/lib/*.test.ts",
-    "provision": "node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/provision.ts",
-    "seed": "node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/seed.ts",
-    "wake": "node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/wake.ts",
-    "backup": "node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/backup.ts"
+    "provision": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/provision.ts",
+    "seed": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/seed.ts",
+    "wake": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/wake.ts",
+    "backup": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/ts-resolve-register.mjs ./scripts/backup.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

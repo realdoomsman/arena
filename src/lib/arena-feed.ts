@@ -125,6 +125,7 @@ export function getArenaFeed(limit = 120): FeedItem[] {
       `SELECT d.id, d.bot_id, d.ts, d.rationale, d.actions, d.error
        FROM bot_decisions d
        WHERE NOT EXISTS (SELECT 1 FROM bot_posts p WHERE p.decision_id = d.id)
+         AND (d.published_at IS NOT NULL OR d.error IS NOT NULL)
        ORDER BY d.ts DESC LIMIT ?`
     )
     .all(limit) as {

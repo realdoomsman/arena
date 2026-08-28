@@ -28,9 +28,9 @@ export const QUOTE_ASSETS: ReadonlySet<string> = new Set([SOL_MINT, USDC_MINT, U
 type BalancesCache = { data: Record<string, number>; sol: number; ts: number };
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __aBalances: Map<string, BalancesCache> | undefined;
-  // eslint-disable-next-line no-var
+   
   var __aSymbols: Map<string, string> | undefined;
 }
 

@@ -85,7 +85,21 @@ export async function withdrawSol(
   const tx = new VersionedTransaction(msg);
   tx.sign([signer]);
   const signature = await conn.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
-  await conn.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  // Same rule as the swap paths: an on-chain err is a real failure, but a
+  // confirm TIMEOUT is not — the transfer may still land, and reporting it as
+  // failed invites a retry that pays the user twice.
+  try {
+    const res = await conn.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+    if (res.value.err) throw new CustodyError(`Transfer failed on-chain (${signature})`);
+  } catch (e) {
+    if (e instanceof CustodyError) throw e;
+    if (!(await verifySignature(signature))) {
+      throw new CustodyError(
+        `Could not confirm ${signature}: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+    console.warn(`[custody] confirm timed out but ${signature} landed — treating as success`);
+  }
 
   return { signature, lamports };
 }
@@ -115,12 +129,27 @@ export async function signSendConfirmOneWith(
   tx.sign([signer]);
   const latest = await conn.getLatestBlockhash("confirmed");
   const signature = await conn.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
-  const res = await conn.confirmTransaction(
-    { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-    "confirmed"
-  );
-  if (res.value.err) throw new CustodyError(`Transaction failed on-chain (${signature})`);
-  return signature;
+  // Same timeout-vs-failure distinction as signSendConfirmOne below: this is
+  // the path every BOT trade and pooled withdrawal takes, where a false
+  // "failed" verdict on a landed swap makes the ledger disagree with the chain
+  // with user money on the wrong side.
+  try {
+    const res = await conn.confirmTransaction(
+      { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      "confirmed"
+    );
+    if (res.value.err) throw new CustodyError(`Transaction failed on-chain (${signature})`);
+    return signature;
+  } catch (e) {
+    if (e instanceof CustodyError) throw e; // a real on-chain error, not a timeout
+    if (await verifySignature(signature)) {
+      console.warn(`[custody] confirm timed out but ${signature} landed — treating as success`);
+      return signature;
+    }
+    throw new CustodyError(
+      `Could not confirm ${signature}: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
 }
 
 export async function signSendConfirmOne(userId: number, base64Tx: string): Promise<string> {
@@ -184,6 +213,69 @@ export async function signAndSendForAccount(
 }
 
 export { verifySignature };
+
+export type TxFill = {
+  /** Net lamport change of the wallet (fee already deducted). */
+  solDelta: number;
+  feeLamports: number;
+  /** Net raw-unit change per mint for token accounts OWNED by the wallet. */
+  tokens: { mint: string; rawDelta: bigint; decimals: number }[];
+};
+
+type TxMeta = {
+  meta: {
+    fee: number;
+    preBalances: number[];
+    postBalances: number[];
+    preTokenBalances?: { accountIndex: number; mint: string; owner?: string; uiTokenAmount: { amount: string; decimals: number } }[];
+    postTokenBalances?: { accountIndex: number; mint: string; owner?: string; uiTokenAmount: { amount: string; decimals: number } }[];
+  } | null;
+} | null;
+
+/**
+ * What a confirmed transaction ACTUALLY did to a wallet, read back from the
+ * chain. Quotes are promises; this is the receipt. The wallet is the fee payer
+ * on every transaction we sign, so index 0 of pre/postBalances is its SOL.
+ *
+ * Returns null when the RPC has not indexed the transaction yet (it can lag a
+ * confirmed signature by a beat) — callers fall back to the quote and say so.
+ */
+export async function getTransactionFill(signature: string, wallet: string): Promise<TxFill | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
+    let tx: TxMeta;
+    try {
+      tx = await rpc<TxMeta>("getTransaction", [
+        signature,
+        { commitment: "confirmed", maxSupportedTransactionVersion: 0, encoding: "json" },
+      ]);
+    } catch {
+      continue;
+    }
+    if (!tx?.meta) continue;
+
+    const byMint = new Map<string, { rawDelta: bigint; decimals: number }>();
+    for (const b of tx.meta.postTokenBalances ?? []) {
+      if (b.owner !== wallet) continue;
+      const e = byMint.get(b.mint) ?? { rawDelta: BigInt(0), decimals: b.uiTokenAmount.decimals };
+      e.rawDelta += BigInt(b.uiTokenAmount.amount);
+      byMint.set(b.mint, e);
+    }
+    for (const b of tx.meta.preTokenBalances ?? []) {
+      if (b.owner !== wallet) continue;
+      const e = byMint.get(b.mint) ?? { rawDelta: BigInt(0), decimals: b.uiTokenAmount.decimals };
+      e.rawDelta -= BigInt(b.uiTokenAmount.amount);
+      byMint.set(b.mint, e);
+    }
+
+    return {
+      solDelta: (tx.meta.postBalances[0] ?? 0) - (tx.meta.preBalances[0] ?? 0),
+      feeLamports: tx.meta.fee,
+      tokens: [...byMint.entries()].map(([mint, e]) => ({ mint, ...e })),
+    };
+  }
+  return null;
+}
 
 /** Rent-exempt cost of creating one associated token account, in lamports. */
 export const ATA_RENT_LAMPORTS = 2_039_280;

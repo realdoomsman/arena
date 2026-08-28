@@ -43,6 +43,8 @@ export type MarketSnapshot = {
   recent: { ts: number; rationale: string; actions: BotAction[]; outcome: string | null }[];
   /** Lessons the bot wrote about itself in its last reflection. */
   lessons: string[];
+  /** Screened notes from this bot's own backers. Advisory, untrusted data. */
+  backerNotes?: { text: string; stakeUsd: number }[];
 };
 
 // ── Executor limits ─────────────────────────────────────────────────────────
@@ -72,10 +74,18 @@ export type ValidationNote = { action: BotAction; kept: boolean; reason: string 
  */
 export function validateDecision(
   decision: Decision,
-  ctx: { eligible: EligibleToken[]; navLamports: number; idleLamports: number; heldMints: Set<string> }
+  ctx: {
+    eligible: EligibleToken[];
+    navLamports: number;
+    idleLamports: number;
+    heldMints: Set<string>;
+    /** Current value of held positions, so sells can fund later buys in the same wake. */
+    positions?: { mint: string; valueLamports: number }[];
+  }
 ): { actions: BotAction[]; notes: ValidationNote[] } {
   const notes: ValidationNote[] = [];
   const actions: BotAction[] = [];
+  const positionValue = new Map((ctx.positions ?? []).map((p) => [p.mint, p.valueLamports]));
 
   let projectedIdle = ctx.idleLamports;
   const floor = Math.floor(ctx.navLamports * CASH_FLOOR_FRACTION);
@@ -131,6 +141,16 @@ export function validateDecision(
     }
     actions.push({ kind: "sell", mint: raw.mint, fraction: frac });
     notes.push({ action: raw, kept: true, reason: "ok" });
+
+    // Credit the expected proceeds (with a slippage haircut) so a rotation —
+    // sell A, buy B in the same wake — is not refused for the cash the sell
+    // itself frees up. Legs execute in order, so the cash really does exist by
+    // the time the buy fires; if the sell fails on-chain, the buy simply fails
+    // on-chain too and both failures are published.
+    const held = positionValue.get(raw.mint);
+    if (held && held > 0) {
+      projectedIdle += Math.floor(held * frac * 0.98);
+    }
   }
 
   return { actions, notes };

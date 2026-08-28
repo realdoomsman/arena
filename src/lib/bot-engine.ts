@@ -19,7 +19,7 @@ import { monkeyDecision, indexDecision, diamondDecision } from "./bot-controls";
 import { think } from "./bot-brain";
 import { SHARED_SYSTEM_PROMPT, type Provider } from "./bots";
 import { quoteBasketLegs, quoteExitLegs, buildSwapTransactions, SwapError } from "./swap";
-import { signSendConfirmOneWith, getTokenBalanceRaw, LAMPORTS_PER_SOL } from "./accounts";
+import { signSendConfirmOneWith, getTokenBalanceRaw, getTransactionFill, LAMPORTS_PER_SOL } from "./accounts";
 import { getPrices } from "./prices";
 import { invalidateWallet, mintSymbol, SOL_MINT } from "./wallets";
 import { queuePost } from "./bot-social";
@@ -87,6 +87,8 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
       .all(bot.id) as { text: string }[]
   ).map((r) => r.text);
 
+  const { notesForSnapshot } = await import("./bot-notes");
+
   return {
     ts: Date.now(),
     navLamports: nav.navLamports,
@@ -95,6 +97,7 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
     eligible,
     recent,
     lessons,
+    backerNotes: notesForSnapshot(bot.id),
   };
 }
 
@@ -202,12 +205,19 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
     navLamports: nav.navLamports,
     idleLamports: nav.solLamports,
     heldMints: new Set(snap.positions.map((p) => p.mint)),
+    positions: snap.positions.map((p) => ({ mint: p.mint, valueLamports: p.valueLamports })),
   });
 
   const decisionId = recordDecision(bot, snap, { ...decision, actions }, notes, meta, null);
 
   let executed = 0;
   for (const action of actions) {
+    // Shutdown began mid-wake: the legs already executed are committed, and
+    // starting another would open a swap this process may not live to record.
+    if (isDraining()) {
+      notes.push({ action, kept: false, reason: "not started — the process is shutting down" });
+      continue;
+    }
     try {
       if (action.kind === "buy") {
         const token = snap.eligible[action.idx];
@@ -239,8 +249,15 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
   if (after) writeSnapshot(bot, after);
 
   // Publish the decision only now — the swaps have landed, so nobody can read
-  // the site and trade ahead of the bot.
-  db.prepare("UPDATE bot_decisions SET published_at = ? WHERE id = ?").run(Date.now(), decisionId);
+  // the site and trade ahead of the bot. The notes are re-serialized in the
+  // same statement: safety refusals and execution failures were appended after
+  // the row was first written, and a refusal that never reaches the page is a
+  // refusal the transparency claim cannot survive.
+  db.prepare("UPDATE bot_decisions SET published_at = ?, actions = ? WHERE id = ?").run(
+    Date.now(),
+    JSON.stringify({ actions, notes }),
+    decisionId
+  );
   queueTradePost(bot, decisionId, decision.rationale, executed);
 
   return {
@@ -303,8 +320,21 @@ async function executeBuy(
   try {
     const signature = await signSendConfirmOneWith(bot.encrypted_key, txs[0]);
 
-    const decimals = await mintDecimals(token.mint);
-    const qty = Number(legs[0].outAmount) / 10 ** decimals;
+    // Record what the wallet ACTUALLY received, not what Jupiter quoted —
+    // slippage means those differ on every fill, and the receipt also carries
+    // the mint's true decimals (a 9-decimal token recorded at the 6-decimal
+    // default was off a thousandfold).
+    let qty: number;
+    const fill = await getTransactionFill(signature, bot.wallet).catch(() => null);
+    const tokenFill = fill?.tokens.find((t) => t.mint === token.mint && t.rawDelta > BigInt(0));
+    if (tokenFill) {
+      qty = Number(tokenFill.rawDelta) / 10 ** tokenFill.decimals;
+      rememberTokenMeta(token.mint, token.symbol, token.name, tokenFill.decimals);
+    } else {
+      const decimals = await mintDecimals(token.mint);
+      qty = Number(legs[0].outAmount) / 10 ** decimals;
+      console.warn(`[engine] could not read fill for ${signature} — recording the quoted amount`);
+    }
 
     // Both rows or neither. The two statements are synchronous so only a hard
     // kill can land between them, but "a holding with no trade behind it" is
@@ -366,7 +396,14 @@ export async function executeSell(
 
   const symbol = mintSymbol(mint);
   const legs = await quoteExitLegs([{ mint, symbol, rawAmount: rawAmount.toString() }], SLIPPAGE_BPS);
+  if (legs.length === 0) {
+    // No route back to SOL right now (drained pool, delisted token). An
+    // explicit refusal the caller can show — not txs[0]=undefined exploding
+    // mid-withdrawal.
+    throw new EngineError(`no route to exit ${symbol} right now — the pool may be drained`);
+  }
   const txs = await buildSwapTransactions(legs, bot.wallet);
+  if (txs.length === 0) throw new EngineError(`could not build an exit transaction for ${symbol}`);
 
   // Same critical window as a buy — a confirmed sale missing from the ledger
   // would leave the bot appearing to still hold something it has sold.
@@ -402,7 +439,16 @@ async function commitSell(
 
   const signature = await signSendConfirmOneWith(bot.encrypted_key, tx);
 
-  const proceeds = Number(legs[0].outAmount);
+  // The realised amount is what the wallet's SOL actually rose by (net of the
+  // tx fee) — the quote is a promise, and paying a leaver the quote while the
+  // pool filled worse would take the difference from whoever stayed.
+  let proceeds = Number(legs[0].outAmount);
+  const fill = await getTransactionFill(signature, bot.wallet).catch(() => null);
+  if (fill && fill.solDelta > 0) {
+    proceeds = fill.solDelta;
+  } else if (!fill) {
+    console.warn(`[engine] could not read fill for ${signature} — recording the quoted proceeds`);
+  }
   const soldQty = row.qty * fraction;
 
   // A full exit zeroes the position outright rather than subtracting the
@@ -449,6 +495,20 @@ async function mintDecimals(mint: string): Promise<number> {
   // Jupiter's quote already accounted for decimals; 6 is the Solana default
   // and is only a display fallback for a mint we have never seen.
   return mint === SOL_MINT ? 9 : 6;
+}
+
+/** Persist what the chain told us about a mint, so decimals and symbols survive restarts. */
+function rememberTokenMeta(mint: string, symbol: string, name: string, decimals: number): void {
+  try {
+    getDb()
+      .prepare(
+        `INSERT INTO token_meta (mint, symbol, name, decimals) VALUES (?, ?, ?, ?)
+         ON CONFLICT(mint) DO UPDATE SET decimals = excluded.decimals`
+      )
+      .run(mint, symbol || mint.slice(0, 8), name || symbol || mint.slice(0, 8), decimals);
+  } catch (e) {
+    console.error("[engine] token_meta write failed:", e);
+  }
 }
 
 /**

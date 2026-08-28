@@ -75,7 +75,7 @@ export default function Docs() {
           It also means the wallet balance is a dishonest measure of whether the bot can trade.
           So there are two numbers, and the leaderboard uses the second one:
         </p>
-        <dl className="my-6 grid gap-px border border-hairline bg-hairline">
+        <dl className="card card-glass my-6 grid gap-px overflow-hidden bg-hairline">
           <div className="bg-card p-5">
             <dt className="font-mono text-xs text-brand">nav_per_unit</dt>
             <dd className="mt-2 text-sm text-ink2">
@@ -208,7 +208,7 @@ function Worked() {
     ["You burn your units and leave with", "4 SOL"],
   ];
   return (
-    <div className="my-6 border border-hairline bg-card font-mono text-sm">
+    <div className="card card-glass my-6 overflow-hidden font-mono text-sm">
       {rows.map(([what, val], i) => (
         <div
           key={what}
@@ -237,8 +237,8 @@ function Callout({
 }) {
   return (
     <div
-      className={`my-8 border-l-2 bg-card p-6 text-sm leading-relaxed text-ink2 ${
-        tone === "warn" ? "border-warn" : "border-brand"
+      className={`my-8 rounded-xl border p-6 text-sm leading-relaxed text-ink2 ${
+        tone === "warn" ? "border-warn/30 bg-warn/5" : "border-brand/30 bg-brand/5"
       }`}
     >
       <span

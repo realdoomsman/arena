@@ -8,4 +8,5 @@ dev.log
 .git
 .claude
 *.log
-.arena-encryption-key.backup.txt
+# Key/wallet backups must never enter a build context, whatever they're named.
+*.backup.txt

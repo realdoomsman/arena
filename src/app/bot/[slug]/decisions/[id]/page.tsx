@@ -9,6 +9,16 @@ import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; id: string }>;
+}) {
+  const { slug, id } = await params;
+  const bot = getBot(slug);
+  return { title: bot ? `${bot.name} · decision #${id} — Arena` : "Not found — Arena" };
+}
+
 type Row = {
   id: number;
   bot_id: number;
@@ -39,8 +49,13 @@ export default async function DecisionPage({
   if (!bot) notFound();
 
   const db = getDb();
+  // The publish embargo applies here too — an in-flight decision must not be
+  // readable by id while its swaps are still landing.
   const row = db
-    .prepare("SELECT * FROM bot_decisions WHERE id = ? AND bot_id = ?")
+    .prepare(
+      `SELECT * FROM bot_decisions
+       WHERE id = ? AND bot_id = ? AND (published_at IS NOT NULL OR error IS NOT NULL)`
+    )
     .get(Number(id), bot.id) as Row | undefined;
   if (!row) notFound();
 
@@ -68,12 +83,10 @@ export default async function DecisionPage({
     notes?: { kept: boolean; reason: string }[];
   };
   const refused = (parsed.notes ?? []).filter((n) => !n.kept);
-  const actions = (parsed.actions ?? []).filter((n) => {
-    const note = (parsed.notes ?? []).find((nn) => 
-      nn.reason.includes(n.kind) || nn.reason.includes(String(n.idx))
-    );
-    return !note || note.kept;
-  });
+  // parsed.actions is already the post-validation kept list — the executor
+  // stores exactly what survived, so re-deriving kept-ness here would only
+  // add ways to be wrong.
+  const actions = parsed.actions ?? [];
 
   return (
     <Scroller>
@@ -110,7 +123,7 @@ export default async function DecisionPage({
             </span>
             <span>·</span>
             <span>{bot.kind === "control" ? "no model · code only" : bot.model}</span>
-            {row.latency_ms && (
+            {row.latency_ms ? (
               <>
                 <span>·</span>
                 <span className="flex items-center gap-1">
@@ -120,19 +133,19 @@ export default async function DecisionPage({
                   {(row.latency_ms / 1000).toFixed(1)}s thought time
                 </span>
               </>
-            )}
-            {row.cost_usd && (
+            ) : null}
+            {row.cost_usd ? (
               <>
                 <span>·</span>
                 <span>${row.cost_usd.toFixed(4)} inference cost</span>
               </>
-            )}
-            {row.tokens_in && (
+            ) : null}
+            {row.tokens_in ? (
               <>
                 <span>·</span>
                 <span>{row.tokens_in.toLocaleString()} tokens in · {row.tokens_out?.toLocaleString() ?? 0} out</span>
               </>
-            )}
+            ) : null}
           </div>
         </header>
 
@@ -187,6 +200,24 @@ export default async function DecisionPage({
             </div>
           ) : (
             <div className="divide-y divide-hairline">
+              {trades.length === 0 && actions.length > 0 && (
+                <div className="px-6 py-4">
+                  <p className="text-sm text-ink3">
+                    {actions.length} approved action{actions.length === 1 ? "" : "s"} produced no
+                    confirmed fill — the swap failed or never landed. Only confirmed on-chain
+                    trades are recorded, so nothing is shown as executed.
+                  </p>
+                  <ul className="mt-3 space-y-1 font-mono text-[0.7rem] text-ink3">
+                    {actions.map((a, i) => (
+                      <li key={i}>
+                        {a.kind}{" "}
+                        {a.kind === "buy" ? `idx ${a.idx}` : `${(a.mint ?? "").slice(0, 8)}…`} ·{" "}
+                        {(a.fraction * 100).toFixed(1)}%
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {trades.map((t) => (
                 <div key={t.id} className="flex items-center justify-between px-6 py-4 hover:bg-card2/30 transition-colors">
                   <div className="flex items-center gap-4">
@@ -345,10 +376,13 @@ export default async function DecisionPage({
                           <th className="px-3 py-2 text-ink3">Idx</th>
                           <th className="px-3 py-2 text-ink3">Token</th>
                           <th className="px-3 py-2 text-right text-ink3">Price</th>
+                          <th className="px-3 py-2 text-right text-ink3">5m</th>
                           <th className="px-3 py-2 text-right text-ink3">1h</th>
                           <th className="px-3 py-2 text-right text-ink3">24h</th>
+                          <th className="px-3 py-2 text-right text-ink3">Vol 1h</th>
                           <th className="px-3 py-2 text-right text-ink3">Liq</th>
                           <th className="px-3 py-2 text-right text-ink3">Mcap</th>
+                          <th className="px-3 py-2 text-right text-ink3">Age</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-hairline">
@@ -365,20 +399,31 @@ export default async function DecisionPage({
                               ${t.priceUsd.toPrecision(4)}
                             </td>
                             <td className={`px-3 py-2 text-right tabular-nums ${
-                              t.change1h && t.change1h >= 0 ? 'text-good' : 'text-bad'
+                              t.change5m == null ? 'text-ink3' : t.change5m >= 0 ? 'text-good' : 'text-bad'
                             }`}>
-                              {t.change1h === null ? '—' : `${t.change1h.toFixed(1)}%`}
+                              {t.change5m == null ? '—' : `${t.change5m >= 0 ? '+' : ''}${t.change5m.toFixed(1)}%`}
                             </td>
                             <td className={`px-3 py-2 text-right tabular-nums ${
-                              t.change24h && t.change24h >= 0 ? 'text-good' : 'text-bad'
+                              t.change1h == null ? 'text-ink3' : t.change1h >= 0 ? 'text-good' : 'text-bad'
                             }`}>
-                              {t.change24h === null ? '—' : `${t.change24h.toFixed(1)}%`}
+                              {t.change1h == null ? '—' : `${t.change1h >= 0 ? '+' : ''}${t.change1h.toFixed(1)}%`}
+                            </td>
+                            <td className={`px-3 py-2 text-right tabular-nums ${
+                              t.change24h == null ? 'text-ink3' : t.change24h >= 0 ? 'text-good' : 'text-bad'
+                            }`}>
+                              {t.change24h == null ? '—' : `${t.change24h >= 0 ? '+' : ''}${t.change24h.toFixed(1)}%`}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink3">
+                              {t.vol1hUsd == null ? '—' : `$${Math.round(t.vol1hUsd).toLocaleString()}`}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink3">
                               {Math.round(t.liquidityUsd).toLocaleString()}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink3">
                               {t.mcapUsd ? `$${(t.mcapUsd / 1000).toFixed(0)}K` : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink3">
+                              {t.ageHours == null ? '—' : t.ageHours < 48 ? `${t.ageHours.toFixed(1)}h` : `${Math.round(t.ageHours / 24)}d`}
                             </td>
                           </tr>
                         ))}

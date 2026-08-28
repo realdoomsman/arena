@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { createSession, verifyPassword } from "@/lib/auth";
+import { clientIp, createSession, hashPassword, rateLimit, verifyPassword } from "@/lib/auth";
+
+// A real hash of a password nobody is sent, so a login attempt against a
+// non-existent email costs the same scrypt work as one against a real account.
+// Without it, response timing was an enumeration oracle that defeated the
+// uniform error message below.
+const DUMMY_HASH = hashPassword("timing-equalizer-not-a-real-password");
 
 export async function POST(req: Request) {
+  if (!rateLimit(`login:${clientIp(req)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Too many attempts — wait a minute" }, { status: 429 });
+  }
+
   let body: { email?: string; password?: string };
   try {
     body = await req.json();
@@ -17,8 +27,11 @@ export async function POST(req: Request) {
     .get(email) as { id: number; email: string; username: string; pass_hash: string } | undefined;
 
   // One message for both "no such account" and "wrong password", so the
-  // endpoint cannot be used to enumerate who has an account here.
-  if (!row || !row.pass_hash || !verifyPassword(password, row.pass_hash)) {
+  // endpoint cannot be used to enumerate who has an account here — and the
+  // scrypt work runs on BOTH paths so timing does not leak what the message
+  // withholds.
+  const valid = verifyPassword(password, row?.pass_hash || DUMMY_HASH);
+  if (!valid || !row) {
     return NextResponse.json({ error: "Email or password is incorrect" }, { status: 401 });
   }
 

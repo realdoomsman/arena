@@ -30,10 +30,18 @@ function tok(idx: number, symbol: string, liquidityUsd: number): EligibleToken {
     priceUsd: 1,
     change24h: null,
     change1h: null,
+    change5m: null,
     liquidityUsd,
     mcapUsd: null,
     organicScore: null,
     holders: null,
+    vol5mUsd: null,
+    vol1hUsd: null,
+    netBuyers5m: null,
+    traders1h: null,
+    holderChange1hPct: null,
+    ageHours: null,
+    topHoldersPct: null,
     launchpad: null,
     fresh: false,
   };
@@ -82,26 +90,56 @@ test("selling something the bot does not hold is dropped", () => {
 
 // ── Sizing discipline ──────────────────────────────────────────────────────
 
-test("an oversized buy is clamped, not refused", () => {
-  const d: Decision = { rationale: "", actions: [{ kind: "buy", idx: 0, fraction: 0.9 }] };
+test("an oversized buy is clamped to 100% of NAV, not refused", () => {
+  // INFINITE MODE: all-in is allowed, but a model asking for 250% of NAV is
+  // still hallucinating — the executor brings it back to what actually exists.
+  const d: Decision = { rationale: "", actions: [{ kind: "buy", idx: 0, fraction: 2.5 }] };
   const { actions, notes } = validateDecision(d, ctx());
   assert.equal(actions.length, 1, "the trade still happens");
   assert.ok(
     actions[0].kind === "buy" && actions[0].fraction <= MAX_BUY_FRACTION + 1e-9,
-    "but never above the cap"
+    "but never above 100% of NAV"
   );
   assert.match(notes[0].reason, /clamped/);
 });
 
-test("the cash floor cannot be breached", () => {
-  // Nearly fully deployed already: only 5% of NAV is idle, floor is 10%.
+test("a buy can never overdraft idle cash", () => {
+  // Mostly deployed already: 10 SOL NAV but only 0.5 SOL idle. A 25%-of-NAV
+  // buy (2.5 SOL) cannot be funded — it is clamped to the idle 0.5 SOL, never
+  // borrowed. INFINITE MODE removed the cash FLOOR, not double-spending.
   const d: Decision = { rationale: "", actions: [{ kind: "buy", idx: 0, fraction: 0.25 }] };
-  const { actions, notes } = validateDecision(
+  const { actions } = validateDecision(
     d,
     ctx({ idleLamports: 0.5 * SOL, heldMints: new Set(["mint1"]) })
   );
-  assert.equal(actions.length, 0, "a bot that cannot react is a bot that cannot act");
-  assert.match(notes[0].reason, /cash floor|dust/);
+  assert.equal(actions.length, 1, "the affordable part still executes");
+  assert.ok(actions[0].kind === "buy");
+  const spend = Math.floor(10 * SOL * actions[0].fraction);
+  assert.ok(spend <= 0.5 * SOL, `spent ${spend} lamports with only ${0.5 * SOL} idle`);
+});
+
+test("a sell frees cash for a buy in the same wake", () => {
+  // Fully deployed: 10 SOL NAV, zero idle, one big position. Rotating —
+  // sell the position, buy something else — must not be refused for the cash
+  // the sell itself frees up.
+  const d: Decision = {
+    rationale: "",
+    actions: [
+      { kind: "sell", mint: "mint1", fraction: 1 },
+      { kind: "buy", idx: 0, fraction: 0.5 },
+    ],
+  };
+  const { actions } = validateDecision(
+    d,
+    ctx({
+      idleLamports: 0,
+      heldMints: new Set(["mint1"]),
+      positions: [{ mint: "mint1", valueLamports: 10 * SOL }],
+    })
+  );
+  assert.equal(actions.length, 2, "both legs survive");
+  assert.equal(actions[0].kind, "sell");
+  assert.equal(actions[1].kind, "buy");
 });
 
 test("dust trades are refused", () => {

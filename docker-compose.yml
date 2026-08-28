@@ -15,6 +15,11 @@ services:
       # Required. Losing or rotating this permanently locks every wallet.
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
       HELIUS_RPC_URL: ${HELIUS_RPC_URL:-}
+      JUPITER_API_KEY: ${JUPITER_API_KEY:-}
+      BOT_SLIPPAGE_BPS: ${BOT_SLIPPAGE_BPS:-150}
+      ARENA_WAKES_PER_HOUR: ${ARENA_WAKES_PER_HOUR:-1}
+      ARENA_MIN_NOTE_USD: ${ARENA_MIN_NOTE_USD:-50}
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
       ARENA_SCHEDULER_ENABLED: "true"
       # Posting is public and irreversible — opt in deliberately.
       ARENA_SOCIAL_ENABLED: "false"

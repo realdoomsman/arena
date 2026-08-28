@@ -34,6 +34,27 @@ export class InvestError extends Error {}
 /** Smallest meaningful stake. Below this, fees dominate the position. */
 export const MIN_INVEST_LAMPORTS = 20_000_000; // 0.02 SOL
 
+declare global {
+   
+  var __aInvestLocks: Map<number, Promise<unknown>> | undefined;
+}
+
+/**
+ * One capital operation per bot at a time.
+ *
+ * invest and withdraw both read units/NAV, move real SOL, then write the
+ * ledger. Two of them interleaving on the same bot is how a double withdrawal
+ * pays twice and drives bot_units negative — so they queue instead. Per-bot,
+ * because there is no reason a withdrawal from Opus should wait on Monkey's.
+ */
+const investLocks = (globalThis.__aInvestLocks ??= new Map<number, Promise<unknown>>());
+function withBotLock<T>(botId: number, fn: () => Promise<T>): Promise<T> {
+  const prev = investLocks.get(botId) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  investLocks.set(botId, run.then(() => undefined, () => undefined));
+  return run;
+}
+
 export type InvestResult = {
   botSlug: string;
   lamports: number;
@@ -64,10 +85,11 @@ export async function investInBot(
   if (!bot) throw new InvestError("No such bot");
   if (!bot.enabled) throw new InvestError(`${bot.name} is not accepting capital`);
 
+  return withBotLock(bot.id, async () => {
   const wallet = getAccountWallet(userId);
   if (!wallet) throw new InvestError("Your account has no wallet yet");
 
-  const balance = Math.floor((await getSolBalance(wallet.address)) * LAMPORTS_PER_SOL);
+  const balance = await getSolBalance(wallet.address); // lamports
   if (balance < lamports + WITHDRAW_RESERVE_LAMPORTS) {
     throw new InvestError(
       `Not enough SOL — you have ${(balance / LAMPORTS_PER_SOL).toFixed(4)}, and some must stay behind for network fees`
@@ -93,6 +115,7 @@ export async function investInBot(
   invalidateWallet(wallet.address);
 
   return { botSlug: bot.slug, lamports, units, unitPrice: nav.navPerUnit, signature };
+  });
 }
 
 export type WithdrawResult = {
@@ -121,6 +144,7 @@ export async function withdrawFromBot(
   const bot = getBot(slug);
   if (!bot) throw new InvestError("No such bot");
 
+  return withBotLock(bot.id, async () => {
   const held = getUserUnits(userId, bot.id);
   if (!(held.units > 0)) throw new InvestError(`You have no position in ${bot.name}`);
 
@@ -170,17 +194,20 @@ export async function withdrawFromBot(
 
   // 3. Never strand the bot below the rent/fee floor.
   invalidateWallet(bot.wallet);
-  const botBalance = Math.floor((await getSolBalance(bot.wallet)) * LAMPORTS_PER_SOL);
+  const botBalance = await getSolBalance(bot.wallet); // lamports
   const spendable = botBalance - WITHDRAW_RESERVE_LAMPORTS;
   if (payout > spendable) payout = spendable;
   if (payout <= 0) throw new InvestError("Nothing could be realised for your position");
 
+  // Re-read NAV after the sales but BEFORE the payout leaves. recordFlow's
+  // contract is pre-flow NAV — it closes the trading period at that number and
+  // then applies the flow itself. Handing it post-payout NAV subtracted every
+  // withdrawal twice: once on-chain, once again inside recordFlow.
+  const navAfter = (await getBotNav(bot)) ?? nav;
+
   const tx = await buildSolTransfer(bot.wallet, wallet.address, payout);
   const signature = await signSendConfirmOneWith(bot.encrypted_key, tx);
 
-  // Re-read NAV after the sales so the flow is priced against the book that
-  // actually exists now, not the one that existed before the exit.
-  const navAfter = (await getBotNav(bot)) ?? nav;
   recordFlow({
     bot,
     nav: navAfter,
@@ -194,6 +221,7 @@ export async function withdrawFromBot(
   invalidateWallet(wallet.address);
 
   return { botSlug: bot.slug, unitsBurned: units, lamportsPaid: payout, lamportsAtNav, sold, signature };
+  });
 }
 
 /** Everything a user holds across the arena. */
