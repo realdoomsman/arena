@@ -5,8 +5,10 @@ import { buildEligibleList } from "@/lib/bot-universe";
 import { personaFor } from "@/lib/bot-persona";
 import { isValidAddress } from "@/lib/custody";
 import { LAMPORTS_PER_SOL } from "@/lib/accounts";
+import { tokenSafety } from "@/lib/bot-universe";
 import { Avatar } from "@/components/Avatar";
 import { PriceChart } from "@/components/PriceChart";
+import { SafetyBadges } from "@/components/SafetyBadges";
 import { Scroller } from "@/components/Scroller";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +74,11 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
 
   // A token nobody has traded and the feeds don't carry is a dead URL, not a page.
   if (!row && !meta && holders.length === 0 && fills.length === 0) notFound();
+
+  // The RugCheck safety facts (cached 6h with the buy-time gate — a page view
+  // rarely spends a fresh call). Only worth showing for a token on the list;
+  // an arbitrary dead mint would just burn a call for em-dashes.
+  const safety = row ? await tokenSafety(mint).catch(() => null) : null;
 
   const pct = (v: number | null) =>
     v == null ? (
@@ -150,7 +157,11 @@ export default async function TokenPage({ params }: { params: Promise<{ mint: st
           </p>
         )}
 
-        <PriceChart mint={mint} />
+        {safety && <SafetyBadges safety={safety} />}
+
+        {/* key={mint} remounts on client navigation between tokens, so the
+            chart never shows the previous token's line under the new one. */}
+        <PriceChart key={mint} mint={mint} />
 
         <section className="mt-8">
           <div className="section-label mb-3">

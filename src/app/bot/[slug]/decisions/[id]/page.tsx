@@ -274,13 +274,21 @@ export default async function DecisionPage({
                     trades are recorded, so nothing is shown as executed.
                   </p>
                   <ul className="mt-3 space-y-1 font-mono text-[0.7rem] text-ink3">
-                    {actions.map((a, i) => (
-                      <li key={i}>
-                        {a.kind}{" "}
-                        {a.kind === "buy" ? `idx ${a.idx}` : `${(a.mint ?? "").slice(0, 8)}…`} ·{" "}
-                        {(a.fraction * 100).toFixed(1)}%
-                      </li>
-                    ))}
+                    {actions.map((a, i) => {
+                      const target =
+                        a.kind === "buy"
+                          ? a.idx !== undefined && a.idx !== null
+                            ? `idx ${a.idx}`
+                            : a.mint
+                              ? `${a.mint.slice(0, 8)}…`
+                              : "—"
+                          : `${(a.mint ?? "").slice(0, 8)}…`;
+                      return (
+                        <li key={i}>
+                          {a.kind} {target} · {(a.fraction * 100).toFixed(1)}%
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

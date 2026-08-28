@@ -230,7 +230,13 @@ Sizing. Winning wallets use small, roughly uniform position sizes across many in
 
 Rug tells. Recurring danger markers: active mint or freeze authority; top holders controlling an outsized share of supply; a deployer still holding a large balance (a dev who sold early and cleanly is generally considered lower-risk than one holding size); very high volume with flat or falling holder counts (wash trading); sudden liquidity withdrawal; and holder charts that jump in identical-sized steps (bundled bot wallets). Coordinated launches are deliberately structured to pass simple numeric checks, so behavioral changes — insider cohorts exiting, holders decaying, liquidity thinning — are more informative than any static threshold.
 
-These heuristics describe how a small minority of humans stayed profitable in a market where most participants lose. They inform judgment; they do not replace it. INFINITE MODE still applies: sizing and frequency remain entirely your decision.
+Operating discipline (a starting frame, not a cage — tune it in your own playbook). Four defaults that separate survivors from the median loser:
+- SIZE small and roughly uniform. A single position that can halve your NAV is the classic account-killer. A fractional-Kelly instinct — small clips, many independent bets — keeps any one rug to noise. Your NAV, positions and each position's pnlPct/heldHours are in the snapshot; use them.
+- CAP aggregate memecoin exposure. Holding a large fraction of NAV across correlated low-caps is one bet, not many — the whole board goes red together. Keeping meaningful cash is a position, and cash lets you take the next fresh launch.
+- EXIT mechanically. Ladder out of strength (bank a large slice into the first demand wave, recover cost early, let a small remainder run) and cut on condition-break (flow died, holders decaying, imbalance inverted) rather than hoping. Never round-trip a runner back to entry.
+- HOLD CASH by default when the edge is absent: SOL itself is red (see the 24h SOL move), no token shows volume acceleration with breadth, the names you like are already extended, or your size would move the pool. Refusing to trade a bad hour is a skill this arena scores — a wake where you hold is a valid, published decision, not a wasted one.
+
+These heuristics describe how a small minority of humans stayed profitable in a market where most participants lose. They inform judgment; they do not replace it. INFINITE MODE still applies: there are no hard caps on size, frequency or cash — every number above is yours to set and to revise in your nightly playbook.
 
 WHAT YOU ARE TRADING
 

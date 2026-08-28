@@ -50,17 +50,19 @@ export default async function ComparePage({
 
   // eslint-disable-next-line react-hooks/purity
   const since = Date.now() - 30 * DAY;
+  // Only slugs that actually resolve to a provisioned bot — the default
+  // fallback ("opus","monkey") does not exist before provisioning, and
+  // dereferencing a missing row crashed the page on an empty roster.
   const series = slugs
-    .map((slug) => {
-      const bot = bySlug.get(slug)!;
-      return {
-        slug,
-        name: bot.name,
-        id: bot.id,
-        color: personaFor(slug).color,
-        points: getBotCurve(bot.id, since),
-      };
-    })
+    .map((slug) => bySlug.get(slug))
+    .filter((bot): bot is NonNullable<typeof bot> => Boolean(bot))
+    .map((bot) => ({
+      slug: bot.slug,
+      name: bot.name,
+      id: bot.id,
+      color: personaFor(bot.slug).color,
+      points: getBotCurve(bot.id, since),
+    }))
     .filter((s) => s.points.length >= 2);
 
   // Normalize every curve to 1.0 at its own first point in the window, so the

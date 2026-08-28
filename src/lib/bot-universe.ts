@@ -84,12 +84,28 @@ export type EligibleToken = {
   fresh: boolean;
 };
 
-type SafetyVerdict = { ok: boolean; reason: string | null; ts: number };
+/** Richer safety facts, surfaced on the token/decision pages. All from the
+ *  same RugCheck /report the gate already fetches — zero extra calls. */
+export type SafetyDetail = {
+  /** RugCheck's 0-100 normalised risk score. Higher is riskier. */
+  riskScore: number | null;
+  /** Count of detected insider/coordinated-cluster wallets. */
+  insiders: number | null;
+  /** Share of LP that is locked, percent. Low on a fresh pool is a rug lever. */
+  lpLockedPct: number | null;
+  /** Deployer's current holding as a share of supply, percent. */
+  devHoldsPct: number | null;
+  topHolderPct: number | null;
+  mintRevoked: boolean;
+  freezeRevoked: boolean;
+};
+
+type SafetyVerdict = { ok: boolean; reason: string | null; ts: number; detail?: SafetyDetail };
 
 declare global {
-   
+
   var __aSafety: Map<string, SafetyVerdict> | undefined;
-   
+
   var __aList: { list: EligibleToken[]; ts: number } | undefined;
 }
 
@@ -100,6 +116,11 @@ type RugcheckReport = {
   freezeAuthority: string | null;
   rugged: boolean;
   topHolders: { pct: number }[] | null;
+  score_normalised?: number;
+  graphInsidersDetected?: number;
+  creatorBalance?: number;
+  token?: { supply?: number; decimals?: number };
+  markets?: { lp?: { lpLockedPct?: number } }[];
 };
 
 /**
@@ -136,8 +157,23 @@ export async function checkSafety(mint: string): Promise<SafetyVerdict> {
     return { ok: false, reason: "safety check unreachable", ts: 0 };
   }
 
+  // The richer facts, computed once and cached with the verdict so the token
+  // and decision pages can show them without another call.
+  const supply = r.token?.supply;
+  const devHoldsPct =
+    r.creatorBalance != null && supply && supply > 0 ? (r.creatorBalance / supply) * 100 : null;
+  const detail: SafetyDetail = {
+    riskScore: r.score_normalised ?? null,
+    insiders: r.graphInsidersDetected ?? null,
+    lpLockedPct: r.markets?.[0]?.lp?.lpLockedPct ?? null,
+    devHoldsPct,
+    topHolderPct: r.topHolders?.[0]?.pct ?? null,
+    mintRevoked: !r.mintAuthority,
+    freezeRevoked: !r.freezeAuthority,
+  };
+
   const reject = (reason: string): SafetyVerdict => {
-    const v = { ok: false, reason, ts: Date.now() };
+    const v = { ok: false, reason, ts: Date.now(), detail };
     safetyCache.set(mint, v);
     return v;
   };
@@ -156,9 +192,19 @@ export async function checkSafety(mint: string): Promise<SafetyVerdict> {
     return reject(`one wallet holds ${top1.toFixed(1)}%`);
   }
 
-  const v = { ok: true, reason: null, ts: Date.now() };
+  const v = { ok: true, reason: null, ts: Date.now(), detail };
   safetyCache.set(mint, v);
   return v;
+}
+
+/**
+ * Safety facts for display, for the token/decision pages. Uses the same 6h
+ * cache as the gate, so a page view never spends a fresh RugCheck call unless
+ * the token has never been checked. Null when it cannot be fetched.
+ */
+export async function tokenSafety(mint: string): Promise<SafetyDetail | null> {
+  const v = await checkSafety(mint).catch(() => null);
+  return v?.detail ?? null;
 }
 
 type JupStats = {

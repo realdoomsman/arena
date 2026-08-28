@@ -31,11 +31,30 @@ export async function GET(req: Request) {
   if (!identity) return back("/login?error=google");
 
   const db = getDb();
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(identity.email) as
-    | { id: number }
+  const existing = db.prepare("SELECT id, pass_hash FROM users WHERE email = ?").get(identity.email) as
+    | { id: number; pass_hash: string }
     | undefined;
 
   if (existing) {
+    // ACCOUNT-TAKEOVER DEFENSE. Registration never proves email ownership, so
+    // a password row for this email may have been created by anyone. Google,
+    // by contrast, has just PROVEN the person in front of us owns this email.
+    // So Google is authoritative: on sign-in we neutralize any pre-existing
+    // password (only Google can open the account henceforth) and revoke every
+    // existing session, which locks out anyone who pre-registered the email.
+    // A legitimate password user simply continues with Google — their email
+    // was never verified anyway, so nothing trustworthy is lost.
+    if (existing.pass_hash !== "oauth:google") {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare("UPDATE users SET pass_hash = 'oauth:google' WHERE id = ?").run(existing.id);
+        db.prepare("DELETE FROM sessions WHERE user_id = ?").run(existing.id);
+        db.exec("COMMIT");
+      } catch (e) {
+        db.exec("ROLLBACK");
+        throw e;
+      }
+    }
     await createSession(existing.id);
     return back("/account");
   }

@@ -125,11 +125,16 @@ export async function marketStudy(botId: number): Promise<string | null> {
 
   moved.sort((a, b) => b.movePct - a.movePct);
   const winners = moved.slice(0, 8);
-  const losers = moved.slice(-8).reverse();
+  // Losers start AFTER the winners so the same token never appears in both
+  // lists when fewer than 16 tokens were priceable.
+  const losers = moved.slice(Math.max(winners.length, moved.length - 8)).reverse();
   const fmt = (v: number | null | undefined, d = 1) => (v == null ? "-" : v.toFixed(d));
+  // Attacker-controlled symbols must not smuggle the pipe/newline delimiters of
+  // this table into the model's context.
+  const clean = (s: string) => s.replace(/[|\r\n\t]/g, " ").replace(/ {2,}/g, " ").trim().slice(0, 24);
 
   const line = ({ t, movePct }: { t: EligibleToken; movePct: number }) =>
-    `${movePct >= 0 ? "+" : ""}${movePct.toFixed(0)}% since | ${t.symbol} | then: 5m ${fmt(t.change5m)} | 1h ${fmt(t.change1h)} | v5m ${t.vol5mUsd == null ? "-" : Math.round(t.vol5mUsd)} | v1h ${t.vol1hUsd == null ? "-" : Math.round(t.vol1hUsd)} | nB5m ${t.netBuyers5m ?? "-"} | trad1h ${t.traders1h ?? "-"} | hΔ1h ${fmt(t.holderChange1hPct, 2)} | liq ${Math.round(t.liquidityUsd)} | age ${t.ageHours == null ? "-" : t.ageHours.toFixed(1)}h`;
+    `${movePct >= 0 ? "+" : ""}${movePct.toFixed(0)}% since | ${clean(t.symbol)} | then: 5m ${fmt(t.change5m)} | 1h ${fmt(t.change1h)} | v5m ${t.vol5mUsd == null ? "-" : Math.round(t.vol5mUsd)} | v1h ${t.vol1hUsd == null ? "-" : Math.round(t.vol1hUsd)} | nB5m ${t.netBuyers5m ?? "-"} | trad1h ${t.traders1h ?? "-"} | hΔ1h ${fmt(t.holderChange1hPct, 2)} | liq ${Math.round(t.liquidityUsd)} | age ${t.ageHours == null ? "-" : t.ageHours.toFixed(1)}h`;
 
   return [
     `## Market study — what the tokens you saw ~1 day ago did next`,
@@ -159,8 +164,13 @@ function lastReflectionTs(botId: number): number | null {
 export async function reflectIfDue(bot: BotRow): Promise<string | null> {
   if (bot.kind !== "model") return null;
 
-  const last = lastReflectionTs(bot.id);
-  if (last !== null && Date.now() - last < REFLECT_EVERY_MS) return null;
+  // Throttle on the study RUNNING, not just on a lesson posting. A study that
+  // rewrites the playbook but produces no parseable lesson used to leave the
+  // reflection timestamp unchanged — so the expensive LLM study re-fired every
+  // wake and spammed a new playbook version each hour. The playbook's own
+  // updated_at closes that gap.
+  const last = Math.max(lastReflectionTs(bot.id) ?? -Infinity, getPlaybook(bot.id)?.updatedAt ?? -Infinity);
+  if (Number.isFinite(last) && Date.now() - last < REFLECT_EVERY_MS) return null;
 
   const db = getDb();
   const since = Date.now() - WEEK_MS;

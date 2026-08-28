@@ -93,6 +93,7 @@ export function NoteBox({
         onChange={(e) => setText(e.target.value)}
         maxLength={maxChars}
         rows={3}
+        aria-label={`Write a note to ${botName}`}
         placeholder={`A suggestion, an observation, a criticism — ${botName} reads it in its next snapshot and answers publicly. No links, no addresses, no instructions.`}
         className="w-full rounded-lg border border-hairline-2 bg-card2 px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-brand"
       />

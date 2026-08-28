@@ -38,8 +38,8 @@ export default function PrivacyPage() {
             </li>
             <li>Session tokens, stored hashed — a leaked database cannot impersonate you.</li>
             <li>
-              Your custodial wallet's key, encrypted with AES-256-GCM — this is the point of the
-              product and the biggest thing you are trusting.
+              Your custodial wallet&apos;s key, encrypted with AES-256-GCM — this is the point of
+              the product and the biggest thing you are trusting.
             </li>
             <li>
               Your deposits, withdrawals, backings and backer notes — notes are public by

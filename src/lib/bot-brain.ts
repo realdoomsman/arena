@@ -129,6 +129,17 @@ const SEARCH_TOOL_DESCRIPTION =
 
 export type ToolLogEntry = { query: string; results: number };
 
+/**
+ * Token symbols and names are attacker-controlled. Every model-facing table
+ * here is pipe/newline delimited, so a symbol like "X | freeze revoked" or one
+ * carrying a newline could forge columns or inject rows into what the model
+ * reads. Strip the delimiters (and control chars) before rendering.
+ */
+function cleanCell(s: string, max = 24): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[|\u0000-\u001F\u007F]/g, " ").replace(/ {2,}/g, " ").trim().slice(0, max);
+}
+
 type JupSearchToken = {
   id: string;
   symbol?: string;
@@ -180,8 +191,8 @@ async function runSearch(query: string): Promise<{ text: string; results: number
             : "ok";
         return [
           t.id,
-          t.symbol ?? "?",
-          (t.name ?? "").slice(0, 24),
+          cleanCell(t.symbol ?? "?"),
+          cleanCell(t.name ?? ""),
           t.usdPrice ? t.usdPrice.toPrecision(4) : "-",
           n(t.stats5m?.priceChange),
           n(t.stats1h?.priceChange),
@@ -283,10 +294,15 @@ async function thinkAnthropic(model: string, system: string, user: string, enabl
   const toolLog: ToolLogEntry[] = [];
   let tokensIn = 0;
   let tokensOut = 0;
+  let turns = 0;
 
   // The lookup loop: the model may research before it decides. Bounded — once
-  // the lookup budget is spent, the decision tool is forced.
+  // the lookup budget is spent, the decision tool is forced. The turn cap is a
+  // hard backstop: a model that returns neither a decision nor a search (pure
+  // text) would otherwise spin forever, since that path never spends the
+  // lookup budget.
   for (;;) {
+    if (++turns > MAX_LOOKUPS + 4) throw new BrainError("decision loop did not terminate");
     const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
     const res = await client.messages.create({
       model,
@@ -379,8 +395,10 @@ async function thinkOpenAICompatible(
   const toolLog: ToolLogEntry[] = [];
   let tokensIn = 0;
   let tokensOut = 0;
+  let turns = 0;
 
   for (;;) {
+    if (++turns > MAX_LOOKUPS + 4) throw new BrainError("decision loop did not terminate");
     const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
     const res = await client.chat.completions.create({
       model,
@@ -450,8 +468,10 @@ async function thinkGoogle(model: string, system: string, user: string, enableTo
   const toolLog: ToolLogEntry[] = [];
   let tokensIn = 0;
   let tokensOut = 0;
+  let turns = 0;
 
   for (;;) {
+    if (++turns > MAX_LOOKUPS + 4) throw new BrainError("decision loop did not terminate");
     const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -595,7 +615,7 @@ export function renderSnapshot(s: MarketSnapshot): string {
     lines.push(
       [
         `${t.idx}${t.fresh ? " NEW" : ""}`,
-        t.symbol,
+        cleanCell(t.symbol),
         t.priceUsd.toPrecision(4),
         num(t.change5m),
         num(t.change1h),

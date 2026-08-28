@@ -94,6 +94,7 @@ export function MarketTable({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          aria-label="Search tokens by symbol, name, or exact mint address"
           placeholder={`Search ${list.length} tokens — symbol, name, or exact mint`}
           className="min-w-[16rem] flex-1 rounded-lg border border-hairline-2 bg-card2 px-3 py-2 font-mono text-xs text-ink outline-none transition-colors focus:border-brand"
         />

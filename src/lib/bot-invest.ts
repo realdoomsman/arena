@@ -15,6 +15,7 @@
 // and take it from the people who did not leave. So we sell their slice, watch
 // what it actually fetches, and pay them that.
 import { getDb } from "./db";
+import { withBotLock } from "./bot-lock";
 import {
   getBot,
   getBotNav,
@@ -34,26 +35,8 @@ export class InvestError extends Error {}
 /** Smallest meaningful stake. Below this, fees dominate the position. */
 export const MIN_INVEST_LAMPORTS = 20_000_000; // 0.02 SOL
 
-declare global {
-   
-  var __aInvestLocks: Map<number, Promise<unknown>> | undefined;
-}
-
-/**
- * One capital operation per bot at a time.
- *
- * invest and withdraw both read units/NAV, move real SOL, then write the
- * ledger. Two of them interleaving on the same bot is how a double withdrawal
- * pays twice and drives bot_units negative — so they queue instead. Per-bot,
- * because there is no reason a withdrawal from Opus should wait on Monkey's.
- */
-const investLocks = (globalThis.__aInvestLocks ??= new Map<number, Promise<unknown>>());
-function withBotLock<T>(botId: number, fn: () => Promise<T>): Promise<T> {
-  const prev = investLocks.get(botId) ?? Promise.resolve();
-  const run = prev.then(fn, fn);
-  investLocks.set(botId, run.then(() => undefined, () => undefined));
-  return run;
-}
+// The per-bot capital lock now lives in bot-lock.ts so the wake engine shares
+// the exact same lock — a bot's wake, an invest and a withdraw all serialize.
 
 export type InvestResult = {
   botSlug: string;
@@ -167,7 +150,6 @@ export async function withdrawFromBot(
   if (!(supply > 0)) throw new InvestError("This bot has no units outstanding");
 
   const share = units / supply;
-  const lamportsAtNav = Math.floor(units * nav.navPerUnit);
 
   // 1. Sell this leaver's slice of every position. Their slippage, not
   //    everybody else's.
@@ -190,14 +172,27 @@ export async function withdrawFromBot(
 
   // 2. Their share of the cash that was already idle.
   const idleShare = Math.floor(nav.solLamports * share);
-  let payout = idleShare + realised;
+  const grossOwed = idleShare + realised;
+  let payout = grossOwed;
+  let unitsBurned = units;
 
   // 3. Never strand the bot below the rent/fee floor.
   invalidateWallet(bot.wallet);
   const botBalance = await getSolBalance(bot.wallet); // lamports
   const spendable = botBalance - WITHDRAW_RESERVE_LAMPORTS;
-  if (payout > spendable) payout = spendable;
-  if (payout <= 0) throw new InvestError("Nothing could be realised for your position");
+  if (payout > spendable) {
+    payout = spendable;
+    // The reserve is biting: we can't pay the full slice without stranding the
+    // bot below rent. Burn only the units the payout actually covers, so the
+    // leaver keeps a residual position for the unpaid value (now backed by the
+    // idle SOL their sales just produced) rather than losing units for nothing.
+    if (grossOwed > 0 && payout > 0) {
+      unitsBurned = Math.min(units, Math.floor((units * payout) / grossOwed));
+    }
+  }
+  if (payout <= 0 || unitsBurned <= 0) {
+    throw new InvestError("Nothing could be realised for your position right now — try again shortly");
+  }
 
   // Re-read NAV after the sales but BEFORE the payout leaves. recordFlow's
   // contract is pre-flow NAV — it closes the trading period at that number and
@@ -208,19 +203,35 @@ export async function withdrawFromBot(
   const tx = await buildSolTransfer(bot.wallet, wallet.address, payout);
   const signature = await signSendConfirmOneWith(bot.encrypted_key, tx);
 
-  recordFlow({
-    bot,
-    nav: navAfter,
-    userId,
-    kind: "withdraw",
-    lamports: -payout,
-    units: -units,
-    signature,
-  });
+  try {
+    recordFlow({
+      bot,
+      nav: navAfter,
+      userId,
+      kind: "withdraw",
+      lamports: -payout,
+      units: -unitsBurned,
+      signature,
+    });
+  } catch (e) {
+    // The SOL has already left the bot wallet and confirmed on-chain. If the
+    // ledger write fails now, the units are NOT yet burned — leaving the
+    // position withdrawable again. Log loudly with the signature so boot-time
+    // reconcile / an operator can burn them by hand; never swallow this.
+    console.error(
+      `[CRITICAL] withdraw paid ${payout} lamports (sig ${signature}) but ledger write FAILED for user ${userId} bot ${bot.slug} — units ${unitsBurned} must be burned manually:`,
+      e
+    );
+    throw e;
+  }
   invalidateWallet(bot.wallet);
   invalidateWallet(wallet.address);
 
-  return { botSlug: bot.slug, unitsBurned: units, lamportsPaid: payout, lamportsAtNav, sold, signature };
+  // Mid-price value of the units ACTUALLY burned, so the slippage the UI shows
+  // (paid vs at-NAV) compares like with like even when the reserve capped the
+  // burn to a partial exit.
+  const lamportsAtNav = Math.floor(unitsBurned * nav.navPerUnit);
+  return { botSlug: bot.slug, unitsBurned, lamportsPaid: payout, lamportsAtNav, sold, signature };
   });
 }
 

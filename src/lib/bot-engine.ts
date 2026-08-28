@@ -24,10 +24,20 @@ import { getPrices } from "./prices";
 import { invalidateWallet, mintSymbol, SOL_MINT } from "./wallets";
 import { queuePost } from "./bot-social";
 import { enterCritical, exitCritical, isDraining } from "./inflight";
+import { withBotLock } from "./bot-lock";
 
 export class EngineError extends Error {}
 
 const SLIPPAGE_BPS = Number(process.env.BOT_SLIPPAGE_BPS ?? 150);
+/**
+ * Reject a buy whose quoted price impact is this high or worse. A fill that
+ * moves the pool 8% enters underwater by 8% before any thesis plays out, and
+ * no exit discipline recovers that — the position is its own exit liquidity.
+ * Uniform across every bot, so it never biases the model comparison; it only
+ * stops all of them from lighting money on fire in a pool too thin for the
+ * clip. Applies to the size actually being bought, not conviction.
+ */
+const MAX_PRICE_IMPACT_PCT = Number(process.env.BOT_MAX_PRICE_IMPACT_PCT ?? 8);
 
 export type WakeResult = {
   botId: number;
@@ -74,12 +84,21 @@ export async function buildSnapshot(bot: BotRow, nav: BotNav): Promise<MarketSna
       .all(bot.id) as { id: number; ts: number; rationale: string; actions: string }[]
   )
     .reverse()
-    .map((d) => ({
-      ts: d.ts,
-      rationale: d.rationale,
-      actions: JSON.parse(d.actions) as MarketSnapshot["recent"][number]["actions"],
-      outcome: outcomeFor(d.id),
-    }));
+    .map((d) => {
+      // The actions column stores {actions, notes} (see recordDecision), not a
+      // bare BotAction[]. Unwrap it, or every past decision reaches the model
+      // as a doubly-nested object its own snapshot type does not describe.
+      let actions: MarketSnapshot["recent"][number]["actions"] = [];
+      try {
+        const parsed = JSON.parse(d.actions) as { actions?: unknown };
+        if (Array.isArray(parsed?.actions)) {
+          actions = parsed.actions as MarketSnapshot["recent"][number]["actions"];
+        }
+      } catch {
+        /* a malformed row still shows its rationale and outcome */
+      }
+      return { ts: d.ts, rationale: d.rationale, actions, outcome: outcomeFor(d.id) };
+    });
 
   const lessons = (
     db
@@ -228,7 +247,14 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
 
   const decisionId = recordDecision(bot, snap, { ...decision, actions }, notes, meta, null, toolLog);
 
+  // Serialize the capital-moving section against invests, withdrawals and the
+  // risk sweep on the SAME bot (shared per-bot lock). The lock is taken only
+  // now — not around the slow LLM decide() above — so a user's withdrawal is
+  // never blocked for the seconds a model spends thinking. Without this, a
+  // wake selling a mint while a withdrawal sells the same mint produced a
+  // silent lost update in bot_holdings.
   let executed = 0;
+  await withBotLock(bot.id, async () => {
   for (const action of actions) {
     // Shutdown began mid-wake: the legs already executed are committed, and
     // starting another would open a swap this process may not live to record.
@@ -275,6 +301,7 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
       notes.push({ action, kept: false, reason: `execution failed: ${msg}` });
     }
   }
+  });
 
   // Re-price after trading so the curve point reflects the new book.
   invalidateWallet(bot.wallet);
@@ -345,6 +372,18 @@ async function executeBuy(
     lamports,
     SLIPPAGE_BPS
   );
+
+  // Price-impact gate. The quote already carries the impact for THIS clip
+  // against the live pool; a fill above the cap enters underwater by that much
+  // before anything else happens. Refuse and let the caller publish it — the
+  // refusal is a first-class, visible outcome, not a hidden loss.
+  const impact = legs[0]?.priceImpactPct ?? 0;
+  if (impact * 100 >= MAX_PRICE_IMPACT_PCT) {
+    throw new SwapError(
+      `price impact ${(impact * 100).toFixed(1)}% ≥ ${MAX_PRICE_IMPACT_PCT}% cap — pool too thin for this size`
+    );
+  }
+
   const txs = await buildSwapTransactions(legs, bot.wallet);
   if (txs.length !== 1) throw new SwapError("expected exactly one swap transaction");
 
