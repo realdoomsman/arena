@@ -157,3 +157,29 @@ test("enabled but with no treasury is a safe no-op, not a throw", async () => {
   assert.equal(await autoDistributeFromTreasury(), null);
   delete process.env.ARENA_AUTO_INJECT_ENABLED;
 });
+
+// ── Creator-fee auto-claim ────────────────────────────────────────────────────
+
+const { claimCreatorFees, creatorClaimEnabled, creatorClaimIntervalMin } =
+  await import("./bot-fees-claim");
+
+test("creator claim is off without a mint or the enable flag", async () => {
+  delete process.env.PUMPFUN_TOKEN_MINT;
+  delete process.env.ARENA_CREATOR_CLAIM_ENABLED;
+  assert.equal(creatorClaimEnabled(), false);
+  assert.equal(await claimCreatorFees(), null);
+
+  // Enable flag alone, no mint → still off (nothing to claim against).
+  process.env.ARENA_CREATOR_CLAIM_ENABLED = "true";
+  assert.equal(creatorClaimEnabled(), false);
+  assert.equal(await claimCreatorFees(), null);
+  delete process.env.ARENA_CREATOR_CLAIM_ENABLED;
+});
+
+test("creator claim interval parses with a sane floor", () => {
+  process.env.ARENA_CREATOR_CLAIM_INTERVAL_MIN = "120";
+  assert.equal(creatorClaimIntervalMin(), 120);
+  process.env.ARENA_CREATOR_CLAIM_INTERVAL_MIN = "2"; // below the 5-min floor
+  assert.equal(creatorClaimIntervalMin(), 60);
+  delete process.env.ARENA_CREATOR_CLAIM_INTERVAL_MIN;
+});

@@ -20,6 +20,7 @@ import { reflectIfDue } from "./bot-memory";
 import { isDraining } from "./inflight";
 import { reconcileAll } from "./bot-reconcile";
 import { autoDistributeFromTreasury, autoInjectEnabled, autoInjectIntervalMin } from "./bot-funding";
+import { claimCreatorFees, creatorClaimEnabled, creatorClaimIntervalMin } from "./bot-fees-claim";
 
 const TICK_MS = 60_000;
 /** Minute past the hour to re-check the books. Deliberately not :00, where
@@ -40,6 +41,8 @@ declare global {
   var __aSchedulerBusy: boolean | undefined;
 
   var __aLastAutoInject: number | undefined;
+
+  var __aLastCreatorClaim: number | undefined;
 }
 
 /** The hour a wake belongs to. Used to make each bot's hourly run idempotent. */
@@ -208,6 +211,19 @@ export async function tick(now = new Date()): Promise<TickResult> {
       await autoDistributeFromTreasury().catch((e) =>
         console.error("[scheduler] auto fee distribution:", e)
       );
+    }
+  }
+
+  // Claim pump.fun creator rewards into the bots, on its own interval. One
+  // permissionless crank pays every recipient its share; we book each bot's
+  // delta as a fee_injection. Runs only here, under the single lease, so it
+  // never double-claims. Opt-in and best-effort — a failed claim never blocks
+  // a wake; the fees wait in the program for the next crank.
+  if (creatorClaimEnabled()) {
+    const last = globalThis.__aLastCreatorClaim ?? 0;
+    if (now.getTime() - last >= creatorClaimIntervalMin() * 60_000) {
+      globalThis.__aLastCreatorClaim = now.getTime();
+      await claimCreatorFees().catch((e) => console.error("[scheduler] creator-fee claim:", e));
     }
   }
 
