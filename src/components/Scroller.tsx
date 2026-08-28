@@ -26,6 +26,14 @@ export function Scroller({ children }: { children: React.ReactNode }) {
             className="text-ink2 hover:text-brand"
           >
             open source ↗
+          </a>{" "}
+          ·{" "}
+          <a href="/privacy" className="text-ink2 hover:text-brand">
+            privacy
+          </a>{" "}
+          ·{" "}
+          <a href="/terms" className="text-ink2 hover:text-brand">
+            terms
           </a>
         </div>
       </footer>
