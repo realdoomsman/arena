@@ -20,6 +20,9 @@ export async function Nav() {
           <Link href="/compare" className="transition-colors hover:text-ink">
             compare
           </Link>
+          <Link href="/proof" className="transition-colors hover:text-ink">
+            proof
+          </Link>
           <Link href="/status" className="transition-colors hover:text-ink">
             status
           </Link>

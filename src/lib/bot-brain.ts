@@ -28,6 +28,8 @@ export type BrainResult = {
   latencyMs: number;
   /** Raw text, kept for the audit trail even when parsing succeeded. */
   raw: string;
+  /** Every search the model ran before deciding. Published with the decision. */
+  toolLog: { query: string; results: number }[];
 };
 
 /** The one schema every model answers in. */
@@ -105,6 +107,106 @@ const STRICT_DECISION_SCHEMA = {
 };
 
 const TOOL_NAME = "submit_decision";
+const SEARCH_TOOL_NAME = "search_tokens";
+/** Lookups per wake. Enough to chase a few ideas, capped so a wake ends. */
+const MAX_LOOKUPS = 5;
+
+const SEARCH_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    query: {
+      type: "string" as const,
+      description:
+        "A ticker, token name, or exact mint address. Returns live market rows for the top matches, INCLUDING each token's mint — which you can then buy directly with a buy action, even if it is not on your eligible list.",
+    },
+  },
+  required: ["query"],
+  additionalProperties: false,
+};
+
+const SEARCH_TOOL_DESCRIPTION =
+  "Search ALL of Solana for tokens by ticker, name, or mint address. Use it to research a token you have independent reason to want (a narrative you know, a name you saw move), or to pull fresher data on anything. Results include the exact mint address, live price, momentum, holders, liquidity and authority flags. Every lookup you make is published with your decision.";
+
+export type ToolLogEntry = { query: string; results: number };
+
+type JupSearchToken = {
+  id: string;
+  symbol?: string;
+  name?: string;
+  usdPrice?: number;
+  liquidity?: number;
+  mcap?: number;
+  holderCount?: number;
+  launchpad?: string | null;
+  firstPool?: { createdAt?: string };
+  audit?: {
+    mintAuthorityDisabled?: boolean;
+    freezeAuthorityDisabled?: boolean;
+    topHoldersPercentage?: number;
+  };
+  stats5m?: { priceChange?: number; buyVolume?: number; sellVolume?: number; numNetBuyers?: number };
+  stats1h?: { priceChange?: number; buyVolume?: number; sellVolume?: number; numTraders?: number; holderChange?: number };
+  stats24h?: { priceChange?: number };
+};
+
+/** The search tool's implementation: Jupiter's keyless search, rendered in the
+ *  same column language as the snapshot so the model reads it natively. */
+async function runSearch(query: string): Promise<{ text: string; results: number }> {
+  const q = query.trim().slice(0, 80);
+  if (!q) return { text: "Empty query.", results: 0 };
+  try {
+    const res = await fetch(
+      `https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(q)}`,
+      { signal: AbortSignal.timeout(10_000), cache: "no-store" }
+    );
+    if (!res.ok) throw new Error(`jupiter ${res.status}`);
+    const list = (await res.json()) as JupSearchToken[];
+    const rows = (Array.isArray(list) ? list : []).filter((t) => t.id).slice(0, 8);
+    if (rows.length === 0) {
+      return { text: `No tradeable tokens found for "${q}".`, results: 0 };
+    }
+    const n = (v: number | null | undefined, d = 1) => (v == null ? "-" : v.toFixed(d));
+    const lines = [
+      `Results for "${q}" — buy any of these by putting its mint in a buy action (same safety gates apply):`,
+      "mint | symbol | name | price USD | 5m | 1h | 24h | v5m | v1h | nB5m | trad1h | hΔ1h | liq USD | mcap USD | holders | age h | auth",
+      ...rows.map((t) => {
+        const created = t.firstPool?.createdAt ? Date.parse(t.firstPool.createdAt) : NaN;
+        const age = Number.isFinite(created) ? ((Date.now() - created) / 3_600_000).toFixed(1) : "-";
+        const v5m = t.stats5m ? Math.round((t.stats5m.buyVolume ?? 0) + (t.stats5m.sellVolume ?? 0)) : "-";
+        const v1h = t.stats1h ? Math.round((t.stats1h.buyVolume ?? 0) + (t.stats1h.sellVolume ?? 0)) : "-";
+        const auth =
+          t.audit?.mintAuthorityDisabled === false || t.audit?.freezeAuthorityDisabled === false
+            ? "DANGER:authority-live"
+            : "ok";
+        return [
+          t.id,
+          t.symbol ?? "?",
+          (t.name ?? "").slice(0, 24),
+          t.usdPrice ? t.usdPrice.toPrecision(4) : "-",
+          n(t.stats5m?.priceChange),
+          n(t.stats1h?.priceChange),
+          n(t.stats24h?.priceChange),
+          v5m,
+          v1h,
+          t.stats5m?.numNetBuyers ?? "-",
+          t.stats1h?.numTraders ?? "-",
+          n(t.stats1h?.holderChange, 2),
+          t.liquidity ? Math.round(t.liquidity) : "-",
+          t.mcap ? Math.round(t.mcap) : "-",
+          t.holderCount ?? "-",
+          age,
+          auth,
+        ].join(" | ");
+      }),
+    ];
+    return { text: lines.join("\n"), results: rows.length };
+  } catch (e) {
+    return {
+      text: `Search failed (${e instanceof Error ? e.message : "error"}). Try once more or decide without it.`,
+      results: 0,
+    };
+  }
+}
 
 /** OpenAI-compatible providers, and where they live. */
 const OPENAI_COMPATIBLE: Partial<Record<Provider, { baseURL?: string; envKey: string }>> = {
@@ -134,13 +236,24 @@ export async function think(args: {
   const userText = args.userText ?? (args.snapshot ? renderSnapshot(args.snapshot) : null);
   if (!userText) throw new BrainError("think() needs either a snapshot or userText");
 
-  let out: { decision: Decision; tokensIn: number; tokensOut: number; raw: string };
+  // Lookups exist for TRADING wakes only. Reflections and note replies are
+  // deliberately inert — a study that could query the live market could turn
+  // into a trade instruction by the back door.
+  const enableTools = args.userText === undefined && Boolean(args.snapshot);
+
+  let out: {
+    decision: Decision;
+    tokensIn: number;
+    tokensOut: number;
+    raw: string;
+    toolLog: { query: string; results: number }[];
+  };
   if (args.provider === "anthropic") {
-    out = await thinkAnthropic(args.model, args.systemPrompt, userText);
+    out = await thinkAnthropic(args.model, args.systemPrompt, userText, enableTools);
   } else if (args.provider === "google") {
-    out = await thinkGoogle(args.model, args.systemPrompt, userText);
+    out = await thinkGoogle(args.model, args.systemPrompt, userText, enableTools);
   } else if (OPENAI_COMPATIBLE[args.provider]) {
-    out = await thinkOpenAICompatible(args.provider, args.model, args.systemPrompt, userText);
+    out = await thinkOpenAICompatible(args.provider, args.model, args.systemPrompt, userText, enableTools);
   } else {
     throw new BrainError(`${args.provider} has no brain adapter`);
   }
@@ -152,111 +265,250 @@ export async function think(args: {
   };
 }
 
-async function thinkAnthropic(model: string, system: string, user: string) {
+async function thinkAnthropic(model: string, system: string, user: string, enableTools: boolean) {
   const client = new Anthropic();
-  const res = await client.messages.create({
-    model,
-    max_tokens: 8_000,
-    system,
-    // Adaptive thinking on every current model; effort keeps the spend sane
-    // for a task that runs 720 times a month per bot.
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high" },
-    tools: [
-      {
-        name: TOOL_NAME,
-        description: "Submit your trading decision for this hour.",
-        strict: true,
-        input_schema: DECISION_SCHEMA,
-      },
-    ],
-    tool_choice: { type: "tool", name: TOOL_NAME },
-    messages: [{ role: "user", content: user }],
-  });
+  const tools = [
+    {
+      name: TOOL_NAME,
+      description: "Submit your trading decision for this hour.",
+      strict: true,
+      input_schema: DECISION_SCHEMA,
+    },
+    ...(enableTools
+      ? [{ name: SEARCH_TOOL_NAME, description: SEARCH_TOOL_DESCRIPTION, input_schema: SEARCH_SCHEMA }]
+      : []),
+  ];
 
-  // A safety decline is a real outcome, not a crash: record it and let the bot
-  // hold this hour rather than pretending it never woke up.
-  if (res.stop_reason === "refusal") {
-    throw new BrainError(`model declined the request (${res.stop_details?.category ?? "unknown"})`);
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: user }];
+  const toolLog: ToolLogEntry[] = [];
+  let tokensIn = 0;
+  let tokensOut = 0;
+
+  // The lookup loop: the model may research before it decides. Bounded — once
+  // the lookup budget is spent, the decision tool is forced.
+  for (;;) {
+    const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
+    const res = await client.messages.create({
+      model,
+      max_tokens: 8_000,
+      system,
+      // Adaptive thinking on every current model; effort keeps the spend sane
+      // for a task that runs 720 times a month per bot.
+      thinking: { type: "adaptive" },
+      output_config: { effort: "high" },
+      tools,
+      tool_choice: forceDecision ? { type: "tool", name: TOOL_NAME } : { type: "auto" },
+      messages,
+    });
+    tokensIn += res.usage.input_tokens;
+    tokensOut += res.usage.output_tokens;
+
+    // A safety decline is a real outcome, not a crash: record it and let the
+    // bot hold this hour rather than pretending it never woke up.
+    if (res.stop_reason === "refusal") {
+      throw new BrainError(`model declined the request (${res.stop_details?.category ?? "unknown"})`);
+    }
+
+    const blocks = res.content.filter((b) => b.type === "tool_use");
+    const decision = blocks.find((b) => b.name === TOOL_NAME);
+    if (decision) {
+      return {
+        decision: coerce(decision.input),
+        tokensIn,
+        tokensOut,
+        raw: JSON.stringify(decision.input),
+        toolLog,
+      };
+    }
+
+    const searches = blocks.filter((b) => b.name === SEARCH_TOOL_NAME);
+    if (searches.length === 0) {
+      if (forceDecision) throw new BrainError("no decision returned");
+      messages.push({ role: "assistant", content: res.content });
+      messages.push({ role: "user", content: "Submit your decision now using the submit_decision tool." });
+      continue;
+    }
+
+    // Every tool_use in the turn must receive a tool_result.
+    const results: Anthropic.ToolResultBlockParam[] = [];
+    for (const s of searches) {
+      const q = String((s.input as { query?: unknown }).query ?? "");
+      const r = await runSearch(q);
+      toolLog.push({ query: q, results: r.results });
+      results.push({ type: "tool_result", tool_use_id: s.id, content: r.text });
+    }
+    messages.push({ role: "assistant", content: res.content });
+    messages.push({ role: "user", content: results });
   }
-
-  const block = res.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") throw new BrainError("no decision returned");
-  return {
-    decision: coerce(block.input),
-    tokensIn: res.usage.input_tokens,
-    tokensOut: res.usage.output_tokens,
-    raw: JSON.stringify(block.input),
-  };
 }
 
 async function thinkOpenAICompatible(
   provider: Provider,
   model: string,
   system: string,
-  user: string
+  user: string,
+  enableTools: boolean
 ) {
   const cfg = OPENAI_COMPATIBLE[provider]!;
   const client = new OpenAI({ apiKey: process.env[cfg.envKey], baseURL: cfg.baseURL });
-  const res = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    tools: [
-      {
-        type: "function",
-        function: { name: TOOL_NAME, parameters: STRICT_DECISION_SCHEMA, strict: true },
-      },
-    ],
-    tool_choice: { type: "function", function: { name: TOOL_NAME } },
-  });
 
-  const call = res.choices[0]?.message?.tool_calls?.[0];
-  if (!call || call.type !== "function") throw new BrainError("no decision returned");
-  // Always JSON.parse — providers differ in how they escape tool arguments,
-  // and string-matching the serialised form breaks on the differences.
-  return {
-    decision: coerce(JSON.parse(call.function.arguments)),
-    tokensIn: res.usage?.prompt_tokens ?? 0,
-    tokensOut: res.usage?.completion_tokens ?? 0,
-    raw: call.function.arguments,
-  };
+  const tools: Parameters<typeof client.chat.completions.create>[0]["tools"] = [
+    {
+      type: "function",
+      function: { name: TOOL_NAME, parameters: STRICT_DECISION_SCHEMA, strict: true },
+    },
+    ...(enableTools
+      ? [
+          {
+            type: "function" as const,
+            function: {
+              name: SEARCH_TOOL_NAME,
+              description: SEARCH_TOOL_DESCRIPTION,
+              parameters: SEARCH_SCHEMA,
+              strict: true,
+            },
+          },
+        ]
+      : []),
+  ];
+
+  const messages: Parameters<typeof client.chat.completions.create>[0]["messages"] = [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
+  const toolLog: ToolLogEntry[] = [];
+  let tokensIn = 0;
+  let tokensOut = 0;
+
+  for (;;) {
+    const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
+    const res = await client.chat.completions.create({
+      model,
+      messages,
+      tools,
+      tool_choice: forceDecision
+        ? { type: "function", function: { name: TOOL_NAME } }
+        : "auto",
+    });
+    tokensIn += res.usage?.prompt_tokens ?? 0;
+    tokensOut += res.usage?.completion_tokens ?? 0;
+
+    const msg = res.choices[0]?.message;
+    const calls = (msg?.tool_calls ?? []).filter((c) => c.type === "function");
+    const decision = calls.find((c) => c.function.name === TOOL_NAME);
+    if (decision) {
+      // Always JSON.parse — providers differ in how they escape tool
+      // arguments, and string-matching the serialised form breaks on it.
+      return {
+        decision: coerce(JSON.parse(decision.function.arguments)),
+        tokensIn,
+        tokensOut,
+        raw: decision.function.arguments,
+        toolLog,
+      };
+    }
+
+    const searches = calls.filter((c) => c.function.name === SEARCH_TOOL_NAME);
+    if (searches.length === 0 || !msg) {
+      if (forceDecision) throw new BrainError("no decision returned");
+      if (msg) messages.push(msg);
+      messages.push({ role: "user", content: "Submit your decision now using the submit_decision tool." });
+      continue;
+    }
+
+    messages.push(msg);
+    for (const c of searches) {
+      let q = "";
+      try {
+        q = String((JSON.parse(c.function.arguments) as { query?: unknown }).query ?? "");
+      } catch {
+        /* malformed args — searched for nothing */
+      }
+      const r = await runSearch(q);
+      toolLog.push({ query: q, results: r.results });
+      messages.push({ role: "tool", tool_call_id: c.id, content: r.text });
+    }
+  }
 }
 
-async function thinkGoogle(model: string, system: string, user: string) {
+async function thinkGoogle(model: string, system: string, user: string, enableTools: boolean) {
   const key = process.env.GOOGLE_API_KEY;
   if (!key) throw new BrainError("GOOGLE_API_KEY is not set");
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-        tools: [{ functionDeclarations: [{ name: TOOL_NAME, parameters: DECISION_SCHEMA }] }],
-        toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [TOOL_NAME] } },
-      }),
-      signal: AbortSignal.timeout(120_000),
-    }
-  );
-  if (!res.ok) throw new BrainError(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { functionCall?: { args?: unknown } }[] } }[];
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  type GPart = {
+    text?: string;
+    functionCall?: { name?: string; args?: unknown };
+    functionResponse?: { name: string; response: unknown };
   };
-  const argsObj = data.candidates?.[0]?.content?.parts?.find((p) => p.functionCall)?.functionCall
-    ?.args;
-  if (!argsObj) throw new BrainError("no decision returned");
-  return {
-    decision: coerce(argsObj),
-    tokensIn: data.usageMetadata?.promptTokenCount ?? 0,
-    tokensOut: data.usageMetadata?.candidatesTokenCount ?? 0,
-    raw: JSON.stringify(argsObj),
-  };
+  const contents: { role: string; parts: GPart[] }[] = [{ role: "user", parts: [{ text: user }] }];
+  const declarations = [
+    { name: TOOL_NAME, parameters: DECISION_SCHEMA },
+    ...(enableTools
+      ? [{ name: SEARCH_TOOL_NAME, description: SEARCH_TOOL_DESCRIPTION, parameters: SEARCH_SCHEMA }]
+      : []),
+  ];
+  const toolLog: ToolLogEntry[] = [];
+  let tokensIn = 0;
+  let tokensOut = 0;
+
+  for (;;) {
+    const forceDecision = !enableTools || toolLog.length >= MAX_LOOKUPS;
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents,
+          tools: [{ functionDeclarations: declarations }],
+          toolConfig: {
+            functionCallingConfig: {
+              mode: "ANY",
+              allowedFunctionNames: forceDecision ? [TOOL_NAME] : [TOOL_NAME, SEARCH_TOOL_NAME],
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(120_000),
+      }
+    );
+    if (!res.ok) throw new BrainError(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: GPart[] } }[];
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    tokensIn += data.usageMetadata?.promptTokenCount ?? 0;
+    tokensOut += data.usageMetadata?.candidatesTokenCount ?? 0;
+
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const callParts = parts.filter((p) => p.functionCall?.name);
+    const decision = callParts.find((p) => p.functionCall!.name === TOOL_NAME);
+    if (decision) {
+      return {
+        decision: coerce(decision.functionCall!.args),
+        tokensIn,
+        tokensOut,
+        raw: JSON.stringify(decision.functionCall!.args),
+        toolLog,
+      };
+    }
+
+    const searches = callParts.filter((p) => p.functionCall!.name === SEARCH_TOOL_NAME);
+    if (searches.length === 0) throw new BrainError("no decision returned");
+
+    contents.push({ role: "model", parts: callParts });
+    const responses: GPart[] = [];
+    for (const s of searches) {
+      const q = String((s.functionCall!.args as { query?: unknown } | undefined)?.query ?? "");
+      const r = await runSearch(q);
+      toolLog.push({ query: q, results: r.results });
+      responses.push({
+        functionResponse: { name: SEARCH_TOOL_NAME, response: { content: r.text } },
+      });
+    }
+    contents.push({ role: "user", parts: responses });
+  }
 }
 
 /**

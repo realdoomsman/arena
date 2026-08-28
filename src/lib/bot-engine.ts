@@ -124,8 +124,15 @@ function outcomeFor(decisionId: number): string | null {
 async function decide(
   bot: BotRow,
   snap: MarketSnapshot
-): Promise<{ decision: Decision; tokensIn: number; tokensOut: number; costUsd: number; latencyMs: number }> {
-  const blank = { tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0 };
+): Promise<{
+  decision: Decision;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  latencyMs: number;
+  toolLog: { query: string; results: number }[];
+}> {
+  const blank = { tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0, toolLog: [] };
 
   if (bot.kind === "control") {
     switch (bot.slug) {
@@ -160,6 +167,7 @@ async function decide(
     tokensOut: r.tokensOut,
     costUsd: r.costUsd,
     latencyMs: r.latencyMs,
+    toolLog: r.toolLog,
   };
 }
 
@@ -198,13 +206,15 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
 
   let decision: Decision;
   let meta = { tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0 };
+  let toolLog: { query: string; results: number }[] = [];
   try {
     const r = await decide(bot, snap);
     decision = r.decision;
+    toolLog = r.toolLog;
     meta = { tokensIn: r.tokensIn, tokensOut: r.tokensOut, costUsd: r.costUsd, latencyMs: r.latencyMs };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    recordDecision(bot, snap, { rationale: "", actions: [] }, [], meta, msg);
+    recordDecision(bot, snap, { rationale: "", actions: [] }, [], meta, msg, []);
     return { ...base, error: msg };
   }
 
@@ -216,7 +226,7 @@ export async function runWake(botIdOrSlug: number | string): Promise<WakeResult>
     positions: snap.positions.map((p) => ({ mint: p.mint, valueLamports: p.valueLamports })),
   });
 
-  const decisionId = recordDecision(bot, snap, { ...decision, actions }, notes, meta, null);
+  const decisionId = recordDecision(bot, snap, { ...decision, actions }, notes, meta, null, toolLog);
 
   let executed = 0;
   for (const action of actions) {
@@ -299,13 +309,14 @@ function recordDecision(
   decision: Decision,
   notes: ValidationNote[],
   meta: { tokensIn: number; tokensOut: number; costUsd: number; latencyMs: number },
-  error: string | null
+  error: string | null,
+  toolLog: { query: string; results: number }[]
 ): number {
   const db = getDb();
   db.prepare(
     `INSERT INTO bot_decisions (bot_id, ts, market_snapshot, rationale, actions,
-                                tokens_in, tokens_out, cost_usd, latency_ms, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                tokens_in, tokens_out, cost_usd, latency_ms, error, tool_log)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     bot.id,
     snap.ts,
@@ -317,7 +328,8 @@ function recordDecision(
     meta.tokensOut,
     meta.costUsd,
     meta.latencyMs,
-    error
+    error,
+    JSON.stringify(toolLog)
   );
   return (db.prepare("SELECT last_insert_rowid() AS id").get() as { id: number }).id;
 }

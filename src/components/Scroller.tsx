@@ -14,7 +14,19 @@ export function Scroller({ children }: { children: React.ReactNode }) {
           <a href="/docs" className="text-ink2 hover:text-brand">
             read this first
           </a>
-          . Memecoins are extremely volatile and most go to zero. Not investment advice.
+          . Memecoins are extremely volatile and most go to zero. Not investment advice.{" "}
+          <a href="/proof" className="text-ink2 hover:text-brand">
+            Verify every claim
+          </a>{" "}
+          ·{" "}
+          <a
+            href="https://github.com/realdoomsman/arena"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink2 hover:text-brand"
+          >
+            open source ↗
+          </a>
         </div>
       </footer>
     </div>

@@ -212,6 +212,109 @@ const SOURCES: { path: string }[] = [
   { path: "tokens/v2/toporganicscore/24h?limit=100" },
 ];
 
+// GeckoTerminal sees pools Jupiter's token feeds do not surface yet — fresh
+// Raydium/Meteora listings and DEX-trending names. Keyless, 30 req/min; four
+// calls per 5-minute rebuild is well inside it. Verified 2026-08.
+const GECKO_SOURCES: string[] = [
+  "networks/solana/trending_pools?include=base_token&page=1",
+  "networks/solana/trending_pools?include=base_token&page=2",
+  "networks/solana/new_pools?include=base_token&page=1",
+  "networks/solana/new_pools?include=base_token&page=2",
+];
+
+type GeckoPool = {
+  attributes?: {
+    base_token_price_usd?: string | null;
+    reserve_in_usd?: string | null;
+    market_cap_usd?: string | null;
+    fdv_usd?: string | null;
+    pool_created_at?: string | null;
+    volume_usd?: { m5?: string | null; h1?: string | null; h24?: string | null };
+    price_change_percentage?: { m5?: string | null; h1?: string | null; h24?: string | null };
+    transactions?: {
+      m5?: { buys?: number; sells?: number; buyers?: number; sellers?: number };
+      h1?: { buys?: number; sells?: number; buyers?: number; sellers?: number };
+    };
+  };
+  relationships?: { base_token?: { data?: { id?: string } } };
+};
+
+/** Map GeckoTerminal pools into the same shape the Jupiter feeds produce, so
+ *  one pipeline (dedupe → filters → pricing) covers every source. GT reports
+ *  combined volume, carried in buyVolume with sellVolume 0 so the downstream
+ *  buy+sell sum stays the true total; net buyers come from real buyer/seller
+ *  counts. */
+async function fetchGecko(path: string): Promise<JupToken[]> {
+  try {
+    const res = await fetch(`https://api.geckoterminal.com/api/v2/${path}`, {
+      signal: AbortSignal.timeout(20_000),
+      cache: "no-store",
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      data?: GeckoPool[];
+      included?: { id: string; attributes?: { address?: string; symbol?: string; name?: string } }[];
+    };
+    const meta = new Map((data.included ?? []).map((i) => [i.id, i.attributes ?? {}]));
+    const num = (v: string | null | undefined) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    const out: JupToken[] = [];
+    const seenHere = new Set<string>();
+    for (const pool of data.data ?? []) {
+      const a = pool.attributes;
+      const baseId = pool.relationships?.base_token?.data?.id;
+      if (!a || !baseId) continue;
+      const m = meta.get(baseId);
+      const mint = m?.address ?? baseId.replace(/^solana_/, "");
+      if (!mint || seenHere.has(mint)) continue; // one token, many pools — keep the ranked one
+      seenHere.add(mint);
+
+      const tx5 = a.transactions?.m5;
+      const tx1h = a.transactions?.h1;
+      out.push({
+        id: mint,
+        symbol: m?.symbol,
+        name: m?.name,
+        liquidity: num(a.reserve_in_usd),
+        usdPrice: num(a.base_token_price_usd),
+        mcap: num(a.market_cap_usd) ?? num(a.fdv_usd),
+        firstPool: a.pool_created_at ? { createdAt: a.pool_created_at } : undefined,
+        stats5m: {
+          priceChange: num(a.price_change_percentage?.m5),
+          buyVolume: num(a.volume_usd?.m5),
+          sellVolume: 0,
+          numBuys: tx5?.buys,
+          numSells: tx5?.sells,
+          numNetBuyers:
+            tx5?.buyers !== undefined && tx5?.sellers !== undefined
+              ? tx5.buyers - tx5.sellers
+              : undefined,
+        },
+        stats1h: {
+          priceChange: num(a.price_change_percentage?.h1),
+          buyVolume: num(a.volume_usd?.h1),
+          sellVolume: 0,
+          numBuys: tx1h?.buys,
+          numSells: tx1h?.sells,
+          numTraders: tx1h?.buyers !== undefined ? (tx1h.buyers ?? 0) + (tx1h.sellers ?? 0) : undefined,
+        },
+        stats24h: {
+          priceChange: num(a.price_change_percentage?.h24),
+          buyVolume: num(a.volume_usd?.h24),
+          sellVolume: 0,
+        },
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Is this actually a memecoin?
  *
@@ -273,7 +376,12 @@ export async function buildEligibleList(force = false): Promise<EligibleToken[]>
   const cached = globalThis.__aList;
   if (!force && cached && Date.now() - cached.ts < LIST_TTL) return cached.list;
 
-  const results = await Promise.all(SOURCES.map((s) => fetchSource(s.path)));
+  // Jupiter sources first: on a dedupe collision their rows carry holders and
+  // organic score, which GeckoTerminal's pool objects cannot.
+  const results = await Promise.all([
+    ...SOURCES.map((s) => fetchSource(s.path)),
+    ...GECKO_SOURCES.map((p) => fetchGecko(p)),
+  ]);
 
   const seen = new Map<string, JupToken>();
   results.forEach((tokens) => {

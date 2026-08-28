@@ -261,6 +261,15 @@ function createDb(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_treasury_ledger ON treasury_ledger(ts DESC);
   `);
+
+  // Additive migrations for databases created before a column existed.
+  // CREATE IF NOT EXISTS cannot retrofit columns; these can, idempotently.
+  try {
+    db.exec("ALTER TABLE bot_decisions ADD COLUMN tool_log TEXT");
+  } catch {
+    /* already there */
+  }
+
   return db;
 }
 

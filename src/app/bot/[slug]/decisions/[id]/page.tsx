@@ -31,6 +31,7 @@ type Row = {
   cost_usd: number | null;
   latency_ms: number | null;
   error: string | null;
+  tool_log: string | null;
 };
 
 /**
@@ -83,6 +84,13 @@ export default async function DecisionPage({
     notes?: { kept: boolean; reason: string }[];
   };
   const refused = (parsed.notes ?? []).filter((n) => !n.kept);
+
+  let lookups: { query: string; results: number }[] = [];
+  try {
+    lookups = row.tool_log ? (JSON.parse(row.tool_log) as typeof lookups) : [];
+  } catch {
+    /* older rows have no tool log */
+  }
   // parsed.actions is already the post-validation kept list — the executor
   // stores exactly what survived, so re-deriving kept-ness here would only
   // add ways to be wrong.
@@ -197,6 +205,28 @@ export default async function DecisionPage({
             </p>
           </div>
         ) : null}
+
+        {/* ── What it looked up ─────────────────────────────────────────────── */}
+        {lookups.length > 0 && (
+          <section className="mt-6 rounded-xl border border-hairline bg-card overflow-hidden">
+            <div className="border-b border-hairline bg-card2/50 px-5 py-3">
+              <h2 className="font-display text-lg font-semibold">What it looked up</h2>
+              <p className="font-mono text-[0.64rem] text-ink3 mt-1">
+                Live searches the model ran before deciding — its own research, published
+              </p>
+            </div>
+            <ul className="divide-y divide-hairline">
+              {lookups.map((l, i) => (
+                <li key={i} className="flex items-baseline justify-between px-6 py-2.5 font-mono text-sm">
+                  <span className="text-ink2">&ldquo;{l.query}&rdquo;</span>
+                  <span className="text-[0.7rem] text-ink3">
+                    {l.results} result{l.results === 1 ? "" : "s"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* ── What It Said (Rationale) ─────────────────────────────────────── */}
         <section className="mt-8 rounded-xl border border-hairline bg-card overflow-hidden">

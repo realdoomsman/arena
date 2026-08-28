@@ -387,3 +387,56 @@ export async function getTokenDetail(mint: string): Promise<TokenDetail | null> 
 }
 
 
+// ── Price history, from GeckoTerminal ───────────────────────────────────────
+// Hourly closes for the last week, via the token's top pool. Keyless. Used
+// only for display — trading marks always come from getPrices, so a chart
+// outage can never move a valuation.
+
+export type PricePoint = [ts: number, close: number];
+
+declare global {
+   
+  var __mbOhlcvCache: Map<string, { ts: number; data: PricePoint[] | null }> | undefined;
+}
+const ohlcvCache = (globalThis.__mbOhlcvCache ??= new Map());
+const OHLCV_TTL = 5 * 60_000;
+
+export async function getTokenOhlcv(mint: string): Promise<PricePoint[] | null> {
+  const hit = ohlcvCache.get(mint);
+  if (hit && Date.now() - hit.ts < OHLCV_TTL) return hit.data;
+
+  const fetchJson = async (path: string) => {
+    const res = await fetch(`https://api.geckoterminal.com/api/v2/${path}`, {
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`geckoterminal ${res.status}`);
+    return res.json();
+  };
+
+  try {
+    const pools = (await fetchJson(`networks/solana/tokens/${mint}/pools?page=1`)) as {
+      data?: { attributes?: { address?: string } }[];
+    };
+    const pool = pools.data?.[0]?.attributes?.address;
+    if (!pool) throw new Error("no pool");
+
+    const ohlcv = (await fetchJson(
+      `networks/solana/pools/${pool}/ohlcv/hour?aggregate=1&limit=168&currency=usd`
+    )) as { data?: { attributes?: { ohlcv_list?: [number, number, number, number, number, number][] } } };
+    const rows = ohlcv.data?.attributes?.ohlcv_list ?? [];
+    const points: PricePoint[] = rows
+      .map((r): PricePoint => [r[0] * 1000, r[4]])
+      .filter((p) => Number.isFinite(p[1]) && p[1] > 0)
+      .sort((a, b) => a[0] - b[0]);
+    const data = points.length >= 2 ? points : null;
+    ohlcvCache.set(mint, { ts: Date.now(), data });
+    return data;
+  } catch {
+    // Cache the miss too — a token with no pool would otherwise re-probe on
+    // every page view.
+    ohlcvCache.set(mint, { ts: Date.now(), data: hit?.data ?? null });
+    return hit?.data ?? null;
+  }
+}

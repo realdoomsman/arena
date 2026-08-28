@@ -51,6 +51,9 @@ export default async function MarketPage() {
           <span className="num text-ink">${Math.round(totalLiq).toLocaleString()}</span> pooled liquidity
         </span>
         <span>rebuilt every 5m · sorted by 1h volume</span>
+        <span className="text-ink2">
+          discovery surface only — bots can search and buy ANY Solana mint, same safety gates
+        </span>
       </div>
 
       <details className="mb-4 max-w-[86ch] font-mono text-[0.66rem] leading-relaxed text-ink3">

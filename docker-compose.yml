@@ -19,6 +19,8 @@ services:
       BOT_SLIPPAGE_BPS: ${BOT_SLIPPAGE_BPS:-150}
       ARENA_WAKES_PER_HOUR: ${ARENA_WAKES_PER_HOUR:-1}
       ARENA_MIN_NOTE_USD: ${ARENA_MIN_NOTE_USD:-50}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       SITE_URL: ${SITE_URL:-http://localhost:3000}
       ARENA_SCHEDULER_ENABLED: "true"
       # Posting is public and irreversible — opt in deliberately.

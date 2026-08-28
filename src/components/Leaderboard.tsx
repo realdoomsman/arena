@@ -37,6 +37,7 @@ export function Leaderboard() {
       slug: b.slug,
       name: b.name,
       kind: b.kind,
+      model: b.kind === "control" ? "code" : b.model,
       slot: b.slot,
       color: persona.color,
       d7: getBotReturn(b.id, 7 * DAY),
@@ -77,9 +78,9 @@ export function Leaderboard() {
         <table className="w-full min-w-[62rem] text-[13px]">
           <thead>
             <tr className="border-b border-hairline">
-              {["#", "Bot", "24h", "7d", "Win", "Realized", "7d curve", "Backing", "Pos", "Wakes in"].map(
+              {["#", "Bot", "Model", "24h", "7d", "Win", "Realized", "7d curve", "Backing", "Pos", "Wakes in"].map(
                 (h, i) => (
-                  <th key={h} className={`px-3 py-2 ${i >= 2 ? "text-right" : "text-left"}`}>
+                  <th key={h} className={`px-3 py-2 ${i >= 3 ? "text-right" : "text-left"}`}>
                     <span className="th">{h}</span>
                   </th>
                 )
@@ -113,6 +114,7 @@ export function Leaderboard() {
                       {beatsMonkey && <span className="badge badge-success">&gt; monkey</span>}
                     </Link>
                   </td>
+                  <td className="px-3 py-2 num text-[0.68rem] text-ink3">{r.model}</td>
                   <td className="px-3 py-2 text-right">{pct(r.d24h)}</td>
                   <td className="px-3 py-2 text-right">{pct(r.d7, true)}</td>
                   <td
